@@ -24,7 +24,7 @@ A path is then constructed as follows:
 
 All floats (`lon_min`, `lat_min`, `lon_max`, `lat_max`, `lon_resolution`,
 `lat_resolution`) are formatted with 'p' in place of the decimal point to avoid
-having dots in the paths. For example, `dx0.1` becomes `dx0p1`.
+having dots in the paths. For example, `0.1` becomes `0p1`.
 
 Functions to construct and parse p-number strings, resolution strings, bbox strings and path strings are provided in the `mlwm.paths` module. E.g.:
 
