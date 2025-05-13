@@ -1,6 +1,20 @@
 import datetime
 
+import pytest
+
 import mlwm.paths as mlwm_paths
+
+
+@pytest.mark.parametrize(
+    "original_number",
+    [123.456, 789, 0.0, -45.67],
+)
+def test_round_trip_number(original_number):
+    formatted_number = mlwm_paths.format_number(original_number)
+    parsed_number = mlwm_paths.parse_number(formatted_number)
+    assert (
+        parsed_number == original_number
+    ), f"Expected {original_number}, got {parsed_number}"
 
 
 def test_round_trip_bbox():
