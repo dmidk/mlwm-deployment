@@ -34,9 +34,9 @@ import datetime
 
 path = mpaths.create_path(
     model_name="harmonie_cy46",
-    model_config="harmonie_cy46",
-    bbox=dict(lon_min=0.1, lat_min=0.2, lon_max=0.3, lat_max=0.4),
-    resolution=dict(lon_resolution=0.1, lat_resolution=0.2),
+    model_config="danra",
+    bbox=dict(lon_min=12.5, lat_min=45.65, lon_max=24.52, lat_max=64.40),
+    resolution=dict(lon_resolution=2.5, lat_resolution=2.5, units="km"),
     analysis_time=datetime.datetime(2023, 10, 1, 12, 0),
     data_kind="pressure_levels"
 )
