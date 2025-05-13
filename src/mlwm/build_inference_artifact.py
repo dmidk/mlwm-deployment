@@ -286,7 +286,7 @@ def _create_artifact_meta(artifact_output_path, nl_config_path, args):
         cwd=os.getcwd(),
         # python version
         python_version=sys.version,
-        # mllam-data-pipeline version
+        # mllam-data-prep version
         mllam_data_prep_version=mdp.__version__,
     )
 
