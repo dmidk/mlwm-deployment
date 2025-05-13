@@ -116,8 +116,12 @@ def _extract_stats(datastore_config_path: str, artifact_path: str):
     ds_stats = xr.Dataset()
 
     # XXX: this is a massive hack, but for now we will just assume that any
-    # variable that has "__" in its name twice is a statistic. This could be
-    # done better by using the implementation in mllam-data-prep...
+    # variable that has "__" in its name twice is a statistic. We can do this because
+    # the statistics variables follow the format `{var_name}__{split}__{statistic}`.
+    # (see
+    # https://github.com/mllam/mllam-data-prep/blob/v0.6.0/mllam_data_prep/create_dataset.py#L279)
+    # This could be done better by exposing in the mllam-data-prep how the
+    # statistics variables are stored...
 
     for var_name in ds.data_vars:
         if len(var_name.split("__")) == 3:
