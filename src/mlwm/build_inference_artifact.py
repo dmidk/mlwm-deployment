@@ -36,7 +36,9 @@ ARTIFACT_PATH_FORMAT = os.environ.get(
     "ARTIFACT_PATH_FORMAT", DEFAULT_ARTIFACT_PATH_FORMAT
 )
 
-TRAINING_CLI_ARGS_FILE = "training_cli_args.yaml"
+TRAINING_CLI_ARGS_FILENAME = "training_cli_args.yaml"
+ARTIFACT_META_FILENAME = "artifact.yaml"
+CHECKPOINT_FILENAME = "checkpoint.pkl"
 
 
 def _find_datastore_paths(nl_config_path: str) -> Dict[str, str]:
@@ -153,7 +155,7 @@ def _copy_checkpoint(checkpoint_path: str, fp_checkpoint_dst: str):
     artifact_output_path : str
         Path to the artifact output directory.
     """
-    fp_checkpoint_dst = Path(fp_checkpoint_dst) / "checkpoint.pkl"
+    fp_checkpoint_dst = Path(fp_checkpoint_dst) / CHECKPOINT_FILENAME
     shutil.copyfile(checkpoint_path, fp_checkpoint_dst)
     logger.info(f"Copied checkpoint {checkpoint_path} -> {fp_checkpoint_dst}")
 
@@ -227,29 +229,29 @@ def _check_and_copy_training_cli_args(artifact_output_path: str):
     artifact_output_path : str
         Path to the artifact output directory.
     """
-    if not Path(TRAINING_CLI_ARGS_FILE).exists():
+    if not Path(TRAINING_CLI_ARGS_FILENAME).exists():
         raise FileNotFoundError(
-            f"File {TRAINING_CLI_ARGS_FILE} not found. Please create this file "
+            f"File {TRAINING_CLI_ARGS_FILENAME} not found. Please create this file "
             "with the command line arguments that were used to train the "
             "model."
         )
 
     try:
-        with open(TRAINING_CLI_ARGS_FILE, "r") as f:
+        with open(TRAINING_CLI_ARGS_FILENAME, "r") as f:
             yaml.safe_load(f)
     except yaml.YAMLError as e:
         raise ValueError(
-            f"File {TRAINING_CLI_ARGS_FILE} is not a valid yaml file. Please "
+            f"File {TRAINING_CLI_ARGS_FILENAME} is not a valid yaml file. Please "
             "check the file."
         ) from e
     # copy the file to the artifact output directory
     shutil.copyfile(
-        TRAINING_CLI_ARGS_FILE,
-        Path(artifact_output_path) / TRAINING_CLI_ARGS_FILE,
+        TRAINING_CLI_ARGS_FILENAME,
+        Path(artifact_output_path) / TRAINING_CLI_ARGS_FILENAME,
     )
     logger.info(
-        f"Copied {TRAINING_CLI_ARGS_FILE} to "
-        f"{Path(artifact_output_path) / TRAINING_CLI_ARGS_FILE}"
+        f"Copied {TRAINING_CLI_ARGS_FILENAME} to "
+        f"{Path(artifact_output_path) / TRAINING_CLI_ARGS_FILENAME}"
     )
 
 
@@ -270,7 +272,7 @@ def _create_artifact_meta(artifact_output_path, nl_config_path, args):
         Command line arguments that were used to create the artifact.
     """
 
-    fp_artifact_meta_yaml = artifact_output_path / "artifact.yaml"
+    fp_artifact_meta_yaml = artifact_output_path / ARTIFACT_META_FILENAME
 
     meta = dict(
         artifact_name=artifact_output_path.name,
