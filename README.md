@@ -25,3 +25,23 @@ A path is then constructed as follows:
 All floats (`lon_min`, `lat_min`, `lon_max`, `lat_max`, `lon_resolution`,
 `lat_resolution`) are formatted with 'p' in place of the decimal point to avoid
 having dots in the paths. For example, `dx0.1` becomes `dx0p1`.
+
+Functions to construct and parse p-number strings, resolution strings, bbox strings and path strings are provided in the `mlwm.paths` module. E.g.:
+
+```python
+import mlwm.paths as mpaths
+import datetime
+
+path = mpaths.create_path(
+    model_name="harmonie_cy46",
+    model_config="harmonie_cy46",
+    bbox=dict(lon_min=0.1, lat_min=0.2, lon_max=0.3, lat_max=0.4),
+    resolution=dict(lon_resolution=0.1, lat_resolution=0.2),
+    analysis_time=datetime.datetime(2023, 10, 1, 12, 0),
+    data_kind="pressure_levels"
+)
+
+parsed_components = mlwm_paths.parse_path(path)
+```
+
+More examples can be found in [`mlwm/tests/test_paths.py`](src/mlwm/tests/test_paths.py).
