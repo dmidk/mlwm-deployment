@@ -18,6 +18,8 @@ jobs:
 
         - name: Install package with UV
           run: |
+            # create a virtual environment
+            uv venv
             # install editable so that we can use dynamic version in pyproject.toml
             uv pip install -e .
 
