@@ -45,3 +45,63 @@ parsed_components = mlwm_paths.parse_path(path)
 ```
 
 More examples can be found in [`mlwm/tests/test_paths.py`](src/mlwm/tests/test_paths.py).
+
+
+## Building inference artifact on machine that was trained on
+
+The purpose of building an **inference artifact** is to collect all the information that is needed to run model inference later.
+
+This includes:
+
+- model checkpoint (with the weights)
+- model configuration (i.e. the neural-lam and datastore config yaml-files)
+- the training arguments (i.e. command line arguments used during training)
+- statistics of the training dataset (used for standardization)
+
+With the `mlwm.build_inference_artifact` command, you can build an inference artifact zip-file and upload this to the DMI S3 bucket for inference artifacts (`s3://mlwm-artifacts/inference-artifacts/`). Before running this command you must make a yaml-file containing the command-line arguments you used during training, e.g.:
+
+```yaml
+# training_cli_args.yaml
+- num_workers: 6
+- precision: bf16-mixed
+- batch_size: 1
+- hidden_dim: 300
+- hidden_dim_grid: 150
+- time_delta_enc_dim: 32
+- config_path: ${CONFIG}
+- model: hi_lam
+- processor_layers: 2
+- graph_name: 2dfeat_7deg_tri_9s_hi3
+- num_nodes: $SLURM_JOB_NUM_NODES
+- epochs: 80
+- ar_steps_train: 1
+- lr: 0.001
+- min_lr: 0.001
+- val_interval: 5
+- ar_steps_eval: 4
+- val_steps_to_log: 1 2 4
+```
+
+When you build the inference artifact you need to give it a name (in the example below this is `gefion-1`), the resulting artifact zip file will then be named `<name>.zip`. This name is simply used to identify the artifact and is not necessarily related to any forecasting container image built later.
+
+To build the inference artifact you run `mlwm.build_inference_artifact`, for example:
+
+```bash
+uv run python -m mlwm.build_inference_artifact gefion-1 --nl_config config.yaml --checkpoint train-graph_lam-4x2-01_24_14-5078/min_val_loss.ckp
+```
+
+The contents of the zip-file will be:
+
+```bash
+gefion-1/
+├── artifact.yaml
+├── checkpoint.pkl
+├── configs
+│   ├── config.yaml
+│   └── danra.datastore.yaml
+├── stats
+│   └── danra.datastore.stats.zarr
+└── training_cli_args.yaml
+```
+
+`artifact.yaml` contains information about how the inference artifact was built, i.e. the command line arguments used to build the artifact, e.g. system information, and the command line arguments used to invocate the cli.
