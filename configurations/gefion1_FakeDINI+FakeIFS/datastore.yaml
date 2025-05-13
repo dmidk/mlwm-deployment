@@ -8,8 +8,8 @@ output:
     forcing: [time, grid_index, forcing_feature]
   coord_ranges:
     time:
-      start: 2000-01-01T00:00
-      end: 2020-10-29T00:00
+      start:
+      end:
       step: PT3H
   chunking:
     time: 1
@@ -32,8 +32,7 @@ output:
 
 inputs:
   danra_sl_state:
-    # path: /dcai/projects/cu_0003/data/sources/danra/v0.5.0/single_levels.zarr/
-    path: https://object-store.os-api.cci1.ecmwf.int/danra/v0.5.0/single_levels.zarr
+    path: /harmonie_cy40/danra/w12p05_s45p65_e24p52_n64p40/dx2p5km_dy2p5km/<analysis_time>/single_levels.zarr/
     dims: [time, x, y]
     variables:
       - pres_seasurface
@@ -56,8 +55,7 @@ inputs:
     target_output_variable: state
 
   danra_pl_state:
-    # path: /dcai/projects/cu_0003/data/sources/danra/v0.5.0/pressure_levels.zarr/
-    path: https://object-store.os-api.cci1.ecmwf.int/danra/v0.5.0/pressure_levels.zarr
+    path: /harmonie_cy40/danra/w12p05_s45p65_e24p52_n64p40/dx2p5km_dy2p5km/<analysis_time>/pressure_levels.zarr/
     dims: [time, x, y, pressure]
     variables:
       z:
@@ -98,8 +96,7 @@ inputs:
     target_output_variable: state
 
   danra_static:
-    # path: /dcai/projects/cu_0003/data/sources/danra/v0.5.0/single_levels.zarr/
-    path: https://object-store.os-api.cci1.ecmwf.int/danra/v0.5.0/single_levels.zarr
+    path: /harmonie_cy40/danra/w12p05_s45p65_e24p52_n64p40/dx2p5km_dy2p5km/<analysis_time>/single_levels.zarr/
     dims: [x, y]
     variables:
       - lsm
@@ -114,8 +111,7 @@ inputs:
     target_output_variable: static
 
   danra_forcing:
-    # path: /dcai/projects/cu_0003/data/sources/danra/v0.5.0/single_levels.zarr/
-    path: https://object-store.os-api.cci1.ecmwf.int/danra/v0.5.0/single_levels.zarr
+    path: /harmonie_cy40/danra/w12p05_s45p65_e24p52_n64p40/dx2p5km_dy2p5km/<analysis_time>/single_levels.zarr/
     dims: [time, x, y]
     derived_variables:
       # derive variables to be used as forcings
