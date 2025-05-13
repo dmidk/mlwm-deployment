@@ -39,25 +39,6 @@ With the `mlwm.build_inference_artifact` command, you can build an inference art
 
 ```yaml
 # training_cli_args.yaml
-# srun -ul ${PYTHON} -m neural_lam.train_model \
-#     --num_workers 6 \
-#     --precision bf16-mixed \
-#     --batch_size 1 \
-#     --hidden_dim 300 \
-#     --hidden_dim_grid 150 \
-#     --time_delta_enc_dim 32 \
-#     --config_path ${CONFIG} \
-#     --model hi_lam \
-#     --processor_layers 2 \
-#     --graph_name 2dfeat_7deg_tri_9s_hi3 \
-#     --num_nodes $SLURM_JOB_NUM_NODES \
-#     --epochs 80 \
-#     --ar_steps_train 1 \
-#     --lr 0.001 \
-#     --min_lr 0.001 \
-#     --val_interval 5 \
-#     --ar_steps_eval 4 \
-#     --val_steps_to_log 1 2 4
 - num_workers: 6
 - precision: bf16-mixed
 - batch_size: 1
@@ -78,7 +59,9 @@ With the `mlwm.build_inference_artifact` command, you can build an inference art
 - val_steps_to_log: 1 2 4
 ```
 
-And then run the command:
+When you build the inference artifact you need to give it a name (in the example below this is `gefion-1`), the resulting artifact zip file will then be named `<name>.zip`. This name is simply used to identify the artifact and is not necessarily related to any forecasting container image built later.
+
+To build the inference artifact you run `mlwm.build_inference_artifact`, for example:
 
 ```bash
 uv run python -m mlwm.build_inference_artifact gefion-1 --nl_config config.yaml --checkpoint train-graph_lam-4x2-01_24_14-5078/min_val_loss.ckp
