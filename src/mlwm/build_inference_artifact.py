@@ -293,20 +293,16 @@ def main():
         required=True,
         help="Path to the model checkpoint.",
     )
-    argparser.add_argument(
-        "--keep_artifact_zip",
-        action="store_true",
-        help="Keep the artifact zip file after uploading it to S3.",
-    )
 
     args = argparser.parse_args()
 
     nl_config_path = args.nl_config
-    artifact_output_path = Path(tempfile.mkdtemp(prefix=args.artifact_name))
+    workdir = Path(tempfile.mkdtemp())
+    artifact_output_path = workdir / args.artifact_name
 
     logger.info(
         f"Building inference artifact for {args.artifact_name} with checkpoint "
-        f"{args.checkpoint} with mlwm version `{__version__}` in {artifact_output_path}"
+        f"{args.checkpoint} with mlwm version `{__version__}` in {workdir}"
     )
 
     _extract_stats_for_all_datastores(
@@ -334,12 +330,12 @@ def main():
     )
 
     # create a zip file with everything in it
-    fp_artifact_local = UPath(f"{args.artifact_name}.zip")
+    fp_artifact_local = workdir / f"{args.artifact_name}.zip"
 
     with zipfile.ZipFile(fp_artifact_local, "w") as zipf:
         files_to_zip = list(artifact_output_path.rglob("*"))
         for fp in tqdm(files_to_zip, desc="Zipping files", unit="file"):
-            zipf.write(fp)
+            zipf.write(fp, fp.relative_to(artifact_output_path))
 
     fp_artifact_target = UPath(
         ARTIFACT_PATH_FORMAT.format(artifact_name=args.artifact_name)
@@ -348,11 +344,6 @@ def main():
         # Upload the zip file to the target location
         logger.info(f"Uploading artifact to {fp_artifact_target}")
         fp_artifact_target.write_bytes(f.read())
-
-    if not args.keep_artifact_zip:
-        # remove the local zip file
-        logger.info(f"Removing local artifact zip file {fp_artifact_local}")
-        os.remove(fp_artifact_local)
 
 
 if __name__ == "__main__":

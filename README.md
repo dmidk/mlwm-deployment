@@ -83,3 +83,19 @@ And then run the command:
 ```bash
 uv run python -m mlwm.build_inference_artifact gefion-1 --nl_config config.yaml --checkpoint train-graph_lam-4x2-01_24_14-5078/min_val_loss.ckp
 ```
+
+The contents of the zip-file will be:
+
+```bash
+gefion-1/
+├── artifact.yaml
+├── checkpoint.pkl
+├── configs
+│   ├── config.yaml
+│   └── danra.datastore.yaml
+├── stats
+│   └── danra.datastore.stats.zarr
+└── training_cli_args.yaml
+```
+
+`artifact.yaml` contains information about how the inference artifact was built, i.e. the command line arguments used to build the artifact, e.g. system information, and the command line arguments used to invocate the cli.
