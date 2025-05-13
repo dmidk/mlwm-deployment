@@ -14,6 +14,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import Dict
 
 import dotenv
 import mllam_data_prep as mdp
@@ -38,7 +39,27 @@ ARTIFACT_PATH_FORMAT = os.environ.get(
 TRAINING_CLI_ARGS_FILE = "training_cli_args.yaml"
 
 
-def _find_datastore_paths(nl_config_path: str):
+def _find_datastore_paths(nl_config_path: str) -> Dict[str, str]:
+    """
+    Find the paths to the datastore configuration files in the neural-lam. This
+    function returns a dictionary because the research branch of neural-lam
+    uses more than one datastore (one for the domain interior and one for the
+    boundary). By supporting the new config structure we can also support
+    multiple datastores in the future.
+
+    Parameters
+    ----------
+    nl_config_path : str
+        Path to the neural-lam config file. This is used to make the paths to
+        the datastore configuration files absolute if they are not already.
+
+    Returns
+    -------
+    datastore_paths : Dict[str, str]
+        A dictionary with the name of the datastore as the key and the path
+        to the datastore configuration file as the value. If there is only
+        one datastore, the key is None.
+    """
     with open(nl_config_path, "r") as f:
         nl_config = yaml.safe_load(f)
 
