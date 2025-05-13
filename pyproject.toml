@@ -4,9 +4,15 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "parse>=1.20.2",
+]
 
 [dependency-groups]
 dev = [
     "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
 ]
+
+[tool.isort]
+profile = "black"
