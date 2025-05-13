@@ -1,0 +1,26 @@
+# Workflow that installs the package with uv and runs pytest
+
+name: pytest
+on: [push, pull_request]
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+          with:
+              # include tags in checkout (needed for dynamic version)
+            fetch-depth: 0
+
+        - name: Install the latest version of uv
+          uses: astral-sh/setup-uv@v6
+
+        - name: Install package with UV
+          run: |
+            # install editable so that we can use dynamic version in pyproject.toml
+            uv pip install -e .
+
+        - name: Run pytest with UV
+          run: |
+            uv run python -m pytest --disable-warnings -s
