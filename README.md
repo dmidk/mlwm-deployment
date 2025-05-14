@@ -11,8 +11,7 @@ Input data is following a structure that contains a list of traditional weather 
 - `<bbox>`: Bounding box of the model
 - `<member>`: Ensemble number of run
 - `<resolution>`: Resolution of the model
-- `<analysis_time>`: Analysis time of the model run in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) (without colons ":" which is
-  still valid ISO8601 format)
+- `<analysis_time>`: Analysis time of the model run in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601), `YYYY-MM-DDThhmmZ` (i.e. without colons ":" which is still valid ISO8601 format, with `Z` to indicate UTC time)
 - `<data_kind>`: Kind of data [e.g. "pressure_levels", "surface_levels"]
 
 A path is then constructed as follows:

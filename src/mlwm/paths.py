@@ -1,32 +1,8 @@
 """
 This module implements functions to create and parse paths for model data.
 
-Input data is following a structure that contains a list of traditional weather
-model identifiers:
+The format is specified in README.md in this repo
 
-- `<model_name>`: Name of the model
-- `<model_config>`: Name of the model configuration
-- `<bbox>`: Bounding box of the model
-- `<resolution>`: Resolution of the model
-- `<analysis_time>`: Analysis time of the model run in [ISO8601
-  format](https://en.wikipedia.org/wiki/ISO_8601) (without colons ":" which is
-  still valid ISO8601 format)
-- `<data_kind>`: Kind of data [e.g. "pressure_levels", "surface_levels"]
-
-A path is then constructed as follows:
-```
-<model_name>/<model_config>/<bbox>/<resolution>/<analysis_time>/<data_kind>.zarr
-```
-- `<model_name>` is a string that contains the name of the model, e.g.
-  `harmonie_cy46`, `ifs_cy50`, etc.
-- `<bbox>` is a string that contains the coordinates of the bounding box in the
-  format `w<lon_min>_s<lat_min>_e<lon_max>_n<lat_max>`.
-- `<resolution>` is a string that contains the resolution of the model in the
-  format `dx<lon_resolution><unit>_dy<lat_resolution><unit>`.
-
-All floats (`lon_min`, `lat_min`, `lon_max`, `lat_max`, `lon_resolution`,
-`lat_resolution`) are formatted with 'p' in place of the decimal point to avoid
-having dots in the paths. For example, `dx0.1` becomes `dx0p1`.
 """
 import datetime
 from typing import Dict, Union
@@ -37,9 +13,10 @@ BBOX_STRING_FORMAT = "w{lon_min}_s{lat_min}_e{lon_max}_n{lat_max}"
 RESOLUTION_STRING_FORMAT = "dx{lon_resolution}{unit}_dy{lat_resolution}{unit}"
 NUMBER_STRING_FORMAT = "{integer_part}p{decimal_part}"
 VALID_LENGTH_UNITS = ["m", "km", "deg"]
+DATETIME_FORMAT = r"%Y-%m-%dT%H%MZ"  # ISO8601 format without colons or seconds
 PATH_FORMAT = (
     "{model_name}/{model_config}/{bbox}/{resolution}/"
-    "{analysis_time}/{data_kind}.zarr"
+    "{analysis_time:" + DATETIME_FORMAT + "}/member{member:d}/{data_kind}.zarr"
 )
 
 
@@ -249,6 +226,7 @@ def create_path(
     resolution: dict,
     analysis_time: datetime.datetime,
     data_kind: str,
+    member: int = 0,
 ) -> str:
     """
     Create a path for the model data.
@@ -269,6 +247,8 @@ def create_path(
         The analysis time in ISO8601 format.
     data_kind : str
         The kind of data (e.g. "pressure_levels", "surface_levels").
+    member : int, optional
+        Ensemble member number. Default is 0 which is the control member.
     Returns
     -------
     str
@@ -277,17 +257,15 @@ def create_path(
 
     bbox_str = format_bbox(**bbox)
     resolution_str = format_resolution(**resolution)
-    # remove colons in time iso8061 format (replace with "") to avoid having
-    # colons in the path. This is still valid iso8061 format
-    analysis_time_str = analysis_time.isoformat().replace(":", "")
 
     return PATH_FORMAT.format(
         model_name=model_name,
         model_config=model_config,
         bbox=bbox_str,
         resolution=resolution_str,
-        analysis_time=analysis_time_str,
+        analysis_time=analysis_time,
         data_kind=data_kind,
+        member=member,
     )
 
 
@@ -310,12 +288,18 @@ def parse_path(path: str):
           'lat_min', 'lon_max', 'lat_max'.
         - 'resolution': The resolution as a dictionary with keys
           'lon_resolution', 'lat_resolution', and 'unit'.
+        - 'member': The ensemble member number.
         - 'analysis_time': The analysis time as a datetime object.
         - 'data_kind': The kind of data (e.g. "pressure_levels", "surface_levels").
     """
     parts = parse.parse(PATH_FORMAT, path)
 
     if parts is None:
+        for n in range(10):
+            s1 = "/".join(PATH_FORMAT.split("/")[:n])
+            s2 = "/".join(path.split("/")[:n])
+            print(s1, s2)
+            print(parse.parse(s1, s2))
         raise ValueError(
             f"Invalid path format: {path}. Expected format: {PATH_FORMAT}"
         )
@@ -324,8 +308,9 @@ def parse_path(path: str):
     model_config = parts["model_config"]
     bbox = parse_bbox(parts["bbox"])
     resolution = parse_resolution(parts["resolution"])
-    analysis_time = datetime.datetime.fromisoformat(parts["analysis_time"])
+    analysis_time = parts["analysis_time"]
     data_kind = parts["data_kind"]
+    member = parts["member"]
 
     return dict(
         model_name=model_name,
@@ -334,4 +319,5 @@ def parse_path(path: str):
         resolution=resolution,
         analysis_time=analysis_time,
         data_kind=data_kind,
+        member=member,
     )
