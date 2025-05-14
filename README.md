@@ -9,6 +9,7 @@ Input data is following a structure that contains a list of traditional weather 
 - `<model_name>`: Name of the model
 - `<model_config>`: Name of the model configuration
 - `<bbox>`: Bounding box of the model
+- `<member>`: Ensemble number of run
 - `<resolution>`: Resolution of the model
 - `<analysis_time>`: Analysis time of the model run in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) (without colons ":" which is
   still valid ISO8601 format)
@@ -16,7 +17,7 @@ Input data is following a structure that contains a list of traditional weather 
 
 A path is then constructed as follows:
 ```
-<model_name>/<model_config>/<bbox>/<resolution>/<analysis_time>/<data_kind>.zarr
+<model_name>/<model_config>/<bbox>/<resolution>/<analysis_time>/<member>/<data_kind>.zarr
 ```
 - `<model_name>` is a string that contains the name of the model, e.g. `harmonie_cy46`, `ifs_cy50`, etc.
 - `<bbox>` is a string that contains the coordinates of the bounding box in the format `w<lon_min>_s<lat_min>_e<lon_max>_n<lat_max>`.
@@ -45,6 +46,8 @@ parsed_components = mlwm_paths.parse_path(path)
 ```
 
 More examples can be found in [`mlwm/tests/test_paths.py`](src/mlwm/tests/test_paths.py).
+
+`<member>` is the number of the ensemble member, with 0 being the control run following the format `member<member>`, like `member0`.
 
 
 ## Building inference artifact on machine that was trained on
