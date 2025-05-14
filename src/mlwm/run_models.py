@@ -21,7 +21,6 @@ In pseudocode, the script does the following:
     - wait for the container to finish running
     - copy the output directories to the s3 locations given in the model
       configuration, again these will be parameterised by the `analysis_time`
-      of the
 
 The following environment variables are used to configure the script (the
 values of which can be overridden with dodenv by setting them in a file named
