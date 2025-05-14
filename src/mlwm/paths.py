@@ -295,11 +295,6 @@ def parse_path(path: str):
     parts = parse.parse(PATH_FORMAT, path)
 
     if parts is None:
-        for n in range(10):
-            s1 = "/".join(PATH_FORMAT.split("/")[:n])
-            s2 = "/".join(path.split("/")[:n])
-            print(s1, s2)
-            print(parse.parse(s1, s2))
         raise ValueError(
             f"Invalid path format: {path}. Expected format: {PATH_FORMAT}"
         )
