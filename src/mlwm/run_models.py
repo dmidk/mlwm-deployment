@@ -32,9 +32,8 @@ values of which can be overridden with dodenv by setting them in a file named
 import datetime
 import os
 import shutil
-import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import dotenv
 from loguru import logger
@@ -43,8 +42,6 @@ from upath import UPath
 
 from . import __version__, config_spec
 from .paths import create_path as create_dataset_path
-
-S3_METHOD = "mounts"
 
 dotenv.load_dotenv()
 
@@ -131,60 +128,6 @@ def copy_directory_to_s3(src_dir, dst_dir):
         dest_path.write_bytes(file.read_bytes())
 
 
-def mount_s3(
-    bucket_name: str, mount_point: str, aws_profile: Optional[str] = None
-) -> None:
-    """
-    Mount an Amazon S3 bucket to a local directory using s3fs.
-
-    Args:
-        bucket_name (str): Name of the S3 bucket.
-        mount_point (str): Local path to mount the bucket.
-        aws_profile (Optional[str]): AWS CLI profile to use. If None, default
-        profile is used.
-
-    Raises:
-        subprocess.CalledProcessError: If the mount command fails.
-    """
-    Path(mount_point).mkdir(parents=True, exist_ok=True)
-
-    cmd = [
-        "s3fs",
-        bucket_name,
-        str(mount_point),
-        "-o",
-        "allow_other",
-    ]
-    if aws_profile:
-        cmd += ["-o", f"profile={aws_profile}"]
-
-    print(f"Mounting s3://{bucket_name} to {mount_point}")
-    subprocess.run(cmd, check=True)
-    print("Mount successful.")
-
-
-def unmount_s3(mount_point: str) -> None:
-    """
-    Unmount a previously mounted S3 bucket.
-
-    Args:
-        mount_point (str): Local mount point to unmount.
-
-    Raises:
-        subprocess.CalledProcessError: If the unmount command fails.
-    """
-    try:
-        logger.debug(f"Unmounting {mount_point}")
-        subprocess.run(
-            ["fusermount", "-u", str(mount_point)], check=True
-        )  # Linux
-        logger.debug("Unmount successful.")
-    except subprocess.CalledProcessError:
-        logger.debug("Linux unmount failed, trying macOS method...")
-        subprocess.run(["umount", str(mount_point)], check=True)  # macOS
-        logger.debug("Unmount successful (macOS).")
-
-
 def _prepare_inputs(
     model_name: str,
     model_config: config_spec.Config,
@@ -226,14 +169,7 @@ def _prepare_inputs(
         logger.info(
             f"Copying input dataset from {source_uri} to {input_workdir}"
         )
-        if S3_METHOD == "mounts":
-            mount_s3(
-                bucket_name=source_uri.bucket,
-                mount_point=input_workdir,
-                aws_profile=data_path_config.uri_args.aws_profile,
-            )
-        else:
-            copy_directory_to_s3(src_dir=source_uri, dst_dir=input_workdir)
+        copy_directory_to_s3(src_dir=source_uri, dst_dir=input_workdir)
 
         volume_mounts[input_workdir] = data_path_config.internal_path
 
@@ -251,13 +187,6 @@ def _prepare_inputs(
         output_uris[output_workdir] = construct_s3_uri(
             data_path_config=data_path_config, analysis_time=analysis_time
         )
-
-        if S3_METHOD == "mounts":
-            mount_s3(
-                bucket_name=output_uris[output_workdir].bucket,
-                mount_point=output_workdir,
-                aws_profile=data_path_config.uri_args.aws_profile,
-            )
 
     return volume_mounts, output_uris
 
