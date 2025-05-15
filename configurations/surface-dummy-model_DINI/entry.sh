@@ -7,8 +7,8 @@
 
 
 INFERENCE_ARTIFACT_PATH="./inference_artifact"
-INPUT_DATASETS_ROOT_PATH="/volume/inputs/"
-OUTPUT_DATASETS_ROOT_PATH="/volume/outputs/"
+INPUT_DATASETS_ROOT_PATH="/volume/inputs"
+OUTPUT_DATASETS_ROOT_PATH="/volume/outputs"
 
 # 1. Create inference dataset
 uv run python -m mlwm.create_inference_dataset \
