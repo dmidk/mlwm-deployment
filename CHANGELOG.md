@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+### Added
+
+- add inferernce container entrypoint, to be run when an inference container is started, [\#13](https://github.com/dmidk/mlwm-deployment/pull/13)
+
 ### Modified
 
 - make ensemble member part of the folder structure, , [\#6](https://github.com/dmidk/mlwm-deployment/pull/6)
