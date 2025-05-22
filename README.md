@@ -26,6 +26,8 @@ All floats (`lon_min`, `lat_min`, `lon_max`, `lat_max`, `lon_resolution`,
 `lat_resolution`) are formatted with 'p' in place of the decimal point to avoid
 having dots in the paths. For example, `0.1` becomes `0p1`.
 
+`<resolution>` is a string that contains the resolution of the model in the format `dx<lon_resolution><unit>_dy<lat_resolution><unit>`.
+
 Functions to construct and parse p-number strings, resolution strings, bbox strings and path strings are provided in the `mlwm.paths` module. E.g.:
 
 ```python
@@ -48,6 +50,8 @@ More examples can be found in [`mlwm/tests/test_paths.py`](src/mlwm/tests/test_p
 
 `<member>` is the number of the ensemble member, with 0 being the control run following the format `member<member>`, like `member0`.
 
+## Building inference images
+Inference are build during the GitHub Actions workflow. The workflow is triggered on every push to the `main` branch. The workflow builds the inference images and pushes them to the ghcr.io registry.
 
 ## Building inference artifact on machine that was trained on
 
