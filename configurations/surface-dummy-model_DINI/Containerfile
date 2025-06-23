@@ -1,0 +1,26 @@
+FROM pytorchlightning/pytorch_lightning:base-cuda-py3.12-torch2.6-cuda12.4.1
+
+WORKDIR /workspace
+
+COPY pyproject.toml .
+COPY *.yaml ./
+COPY entry.sh ./
+
+# The inference artifact is downloaded from an S3 bucket
+# during the build process and is called inference_artifact.zip
+COPY inference_artifact.zip ./
+RUN mkdir -p /workspace/inference_artifact
+# Unzip the inference artifact
+RUN unzip inference_artifact.zip -d /workspace/inference_artifact
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install directly into system python
+# https://github.com/astral-sh/uv/issues/8085#issuecomment-2707744397
+RUN uv export | uv pip install --system -r -
+
+ENTRYPOINT ["entry.sh"]
+#CMD
