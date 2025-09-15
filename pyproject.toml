@@ -3,7 +3,7 @@ name = "mlwm-deployment"
 dynamic = ["version"]
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "parse>=1.20.2",
     "dask>=2025.4.1",
@@ -15,7 +15,7 @@ dependencies = [
     "s3fs>=2025.3.2",
     "tqdm>=4.67.1",
     "universal-pathlib>=0.2.6",
-    "zarr>=3.0",
+    "zarr",
 ]
 
 [dependency-groups]
