@@ -398,6 +398,7 @@ def main():
         logger.info(
             "You opted to skip uploading the inference artifact to the S3 host."
             f" You will have to upload it to {fp_artifact_target} manually."
+            f" The built inference artifact is stored in {fp_artifact_local}"
         )
 
 
