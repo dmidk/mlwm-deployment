@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- add CLI arg to inference artifact building to skip upload [\#16](https://github.com/dmidk/mlwm-deployment/pull/16), @leifdenby
 - add model running CLI, [\#12](https://github.com/dmidk/mlwm-deployment/pull/12), @leifdenby
 - add inferernce container entrypoint, to be run when an inference container is started, [\#13](https://github.com/dmidk/mlwm-deployment/pull/13), @leifdenby
 - add functions for constructing and parsing S3 forecast data paths (`mlwm.paths`) [\#2](https://github.com/dmidk/mlwm-deployment/pull/2), @leifdenby
