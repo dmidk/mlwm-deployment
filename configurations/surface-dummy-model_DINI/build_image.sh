@@ -2,18 +2,22 @@
 
 # Configuration
 MLWM_LOG_LEVEL=DEBUG
-MLWM_BASE_IMAGE="dockerhub.dmi.dk/pytorchlightning/pytorch_lightning:base-cuda-py3.12-torch2.6-cuda12.4.1"
 
 HTTP_PROXY=""
 HTTPS_PROXY=""
 
-
 # Set MLWM_PULL_PROXY before running this script, e.g.:
 #   export MLWM_PULL_PROXY="your.proxy.server:port"
 if [ -z "$MLWM_PULL_PROXY" ]; then
-	echo "Error: MLWM_PULL_PROXY is not set. We set it automatically to an empty string."
+	echo "Info: MLWM_PULL_PROXY is not set. Using public DockerHub."
 	MLWM_PULL_PROXY=""
+    CR_URL="dockerhub.com"
+else
+	echo "Info: Using proxy $MLWM_PULL_PROXY and internal DockerHub."
+    CR_URL="dockerhub.dmi.dk"
 fi
+
+MLWM_BASE_IMAGE="$CR_URL/pytorchlightning/pytorch_lightning:base-cuda-py3.12-torch2.6-cuda12.4.1"
 
 # Check AWS credentials if S3 access is needed
 if [ -z "$AWS_ACCESS_KEY_ID" ]; then
