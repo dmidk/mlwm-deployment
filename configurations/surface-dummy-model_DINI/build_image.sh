@@ -11,8 +11,8 @@ HTTPS_PROXY=""
 # Set MLWM_PULL_PROXY before running this script, e.g.:
 #   export MLWM_PULL_PROXY="your.proxy.server:port"
 if [ -z "$MLWM_PULL_PROXY" ]; then
-	echo "Error: MLWM_PULL_PROXY is not set. Please set it before running this script."
-	exit 1
+	echo "Error: MLWM_PULL_PROXY is not set. We set it automatically to an empty string."
+	MLWM_PULL_PROXY=""
 fi
 
 # Check AWS credentials if S3 access is needed
