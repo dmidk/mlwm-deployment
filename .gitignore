@@ -10,3 +10,5 @@ inference_artifact.zip
 inference_artifact/
 
 *.zip
+.venv
+.checkpoints
