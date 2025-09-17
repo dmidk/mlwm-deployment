@@ -48,15 +48,29 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # when set to "true" but frees about 6 GB
+          tool-cache: true
+          
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
 
       - name: Build Docker image
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           cd configurations/${{ matrix.config }}
           AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} MLWM_PULL_PROXY="" ./build_image.sh
+
+      # sudo rm -rf /usr/share/dotnet
+      # sudo rm -rf /opt/ghc
+      # sudo rm -rf "/usr/local/share/boost"
+      # sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
       # - name: Extract metadata (tags, labels) for Docker
       #   id: meta
