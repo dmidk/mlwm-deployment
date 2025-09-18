@@ -70,12 +70,14 @@ jobs:
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Get latest built image tag
+      - name: Get latest built image
         id: latest_image
         run: |
           IMAGE=$(podman images --format '{{.Repository}}:{{.Tag}}' --sort created | head -n 1)
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          echo "GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ matrix.config }}:latest" >> $GITHUB_ENV
+          # Convert matrix.config to lowercase for the image name
+          GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/$(echo "${{ matrix.config }}" | tr '[:upper:]' '[:lower:]'):latest
+          echo "GHCR_IMAGE=$GHCR_IMAGE" >> $GITHUB_ENV
 
       - name: Tag image for ghcr.io
         run: podman tag $IMAGE $GHCR_IMAGE
