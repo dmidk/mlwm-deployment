@@ -1,0 +1,42 @@
+FROM pytorchlightning/pytorch_lightning:base-cuda-py3.12-torch2.6-cuda12.4.1
+
+WORKDIR /workspace
+
+COPY pyproject.toml .
+COPY *.yaml ./
+COPY entry.sh ./
+
+# Download inference artifact from S3
+ARG DEFAULT_ARTIFACT="s3://mlwm-artifacts/inference-artifacts/surface-dummy-model_DINI.zip"
+ENV MLWM_INFERENCE_ARTIFACT=${DEFAULT_ARTIFACT}
+
+# Install awscli
+RUN apt-get update && apt-get install -y awscli unzip
+
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+ARG AWS_DEFAULT_REGION
+ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+ENV AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+ENV AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION
+
+# Get inference artifact from S3
+RUN aws s3 cp $MLWM_INFERENCE_ARTIFACT ./inference_artifact.zip
+RUN mkdir -p /workspace/inference_artifact
+RUN unzip inference_artifact.zip -d /workspace/inference_artifact
+RUN rm inference_artifact.zip
+# List files in the inference artifact directory for verification
+RUN ls -la /workspace/inference_artifact
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install directly into system python
+# https://github.com/astral-sh/uv/issues/8085#issuecomment-2707744397
+RUN uv export | uv pip install --system -r -
+
+ENTRYPOINT ["/bin/bash"]
+# Set the default command to run when the container starts
+CMD ["entry.sh"]

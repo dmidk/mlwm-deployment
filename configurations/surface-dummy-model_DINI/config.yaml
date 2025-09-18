@@ -1,0 +1,37 @@
+docker_image: ghcr.io/meteomatics/gefion1:latest
+
+inputs:
+  dini_pressure_levels:
+    uri_args:
+      bbox:
+        lon_min: -10.0
+        lat_min: 50.0
+        lon_max: 10.0
+        lat_max: 60.0
+      resolution:
+        lon_resolution: 2.5
+        lat_resolution: 2.5
+        unit: km
+      data_kind: pressure_levels
+      model_name: harmonie
+      model_config: dini
+      bucket_name: forecast-data-public
+    internal_path: /volume/inputs/dini/pressure_levels.zarr
+
+outputs:
+  pressure_levels:
+    internal_path: /volume/output/pressure_levels.zarr
+    uri_args:
+      bbox:
+        lon_min: -10.0
+        lat_min: 50.0
+        lon_max: 10.0
+        lat_max: 60.0
+      resolution:
+        lon_resolution: 2.5
+        lat_resolution: 2.5
+        unit: km
+      data_kind: pressure_levels
+      model_name: gefion1
+      model_config: FakeDINI+FakeIFS
+      bucket_name: forecast-data-public

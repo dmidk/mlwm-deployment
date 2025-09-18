@@ -86,7 +86,10 @@ def _find_datastore_paths(nl_config_path: str) -> Dict[str, str]:
                 datastore_config["config_path"]
             )
     else:
-        raise ValueError("No datastore found in the config file.")
+        raise ValueError(
+            "No datastore found in the config file. Are you sure you "
+            "have provided the path to a valid neural-lam config file?"
+        )
 
     return datastore_paths
 
@@ -184,6 +187,9 @@ def _copy_yaml_configs(nl_config_path: str, artifact_output_path: str):
     artifact_output_path = Path(artifact_output_path) / "configs"
     artifact_output_path.mkdir(parents=True, exist_ok=True)
 
+    logger.debug(
+        f"Opening neural-lam config in {Path(nl_config_path).absolute()}"
+    )
     nl_config = yaml.safe_load(open(nl_config_path, "r"))
 
     datastore_config_paths = _find_datastore_paths(nl_config_path)
@@ -218,41 +224,45 @@ def _copy_yaml_configs(nl_config_path: str, artifact_output_path: str):
     logger.debug(f"Copied {nl_config_path} -> {fp_config_dst}")
 
 
-def _check_and_copy_training_cli_args(artifact_output_path: str):
+def _copy_training_cli_args(
+    artifact_output_path: str, training_cli_args_filepath: str
+):
     """
-    Check for the presence of a file called `training_cli_args.yaml` in the
-    current directory, check that it is a valid yaml file, and copy it to the
-    artifact output directory.
+    Check for the presence of a file that stores the CLI args used during
+    training, check that it is a valid yaml file, and copy it to the artifact
+    output directory. The file with the CLI training args will have a hardcoded
+    filename within the artifact so that we can refer to it later.
 
     Parameters
     ----------
     artifact_output_path : str
         Path to the artifact output directory.
+    training_cli_args_filepath: str
+        Path to the file containing the command line arguments that were used
+        during training. NB: At some point in future hopefully all training
+        arguments that effect inference should be used to the neural-lam config
+        file so that we don't need to provide this command line arguments
+        separately.
     """
-    if not Path(TRAINING_CLI_ARGS_FILENAME).exists():
+    if not Path(training_cli_args_filepath).exists():
         raise FileNotFoundError(
-            f"File {TRAINING_CLI_ARGS_FILENAME} not found. Please create this file "
+            f"File {training_cli_args_filepath} not found. Please create this file "
             "with the command line arguments that were used to train the "
             "model."
         )
 
     try:
-        with open(TRAINING_CLI_ARGS_FILENAME, "r") as f:
+        with open(training_cli_args_filepath, "r") as f:
             yaml.safe_load(f)
     except yaml.YAMLError as e:
         raise ValueError(
-            f"File {TRAINING_CLI_ARGS_FILENAME} is not a valid yaml file. Please "
+            f"File {training_cli_args_filepath} is not a valid yaml file. Please "
             "check the file."
         ) from e
     # copy the file to the artifact output directory
-    shutil.copyfile(
-        TRAINING_CLI_ARGS_FILENAME,
-        Path(artifact_output_path) / TRAINING_CLI_ARGS_FILENAME,
-    )
-    logger.info(
-        f"Copied {TRAINING_CLI_ARGS_FILENAME} to "
-        f"{Path(artifact_output_path) / TRAINING_CLI_ARGS_FILENAME}"
-    )
+    fp_dst = Path(artifact_output_path) / TRAINING_CLI_ARGS_FILENAME
+    shutil.copyfile(training_cli_args_filepath, fp_dst)
+    logger.info(f"Copied {training_cli_args_filepath} to {fp_dst}")
 
 
 def _create_artifact_meta(artifact_output_path, nl_config_path, args):
@@ -320,6 +330,25 @@ def main():
         required=True,
         help="Path to the model checkpoint.",
     )
+    argparser.add_argument(
+        "--cli_training_args_filepath",
+        type=str,
+        default=None,
+        required=True,
+        help=(
+            "Path to file containing the command line arguments used to launch "
+            "neural-lam during training."
+        ),
+    )
+    argparser.add_argument(
+        "--skip_upload",
+        default=False,
+        action="store_true",
+        help=(
+            "Skip uploading the inference artifact to the S3 host (this would "
+            "be necessary on an airgapped system)"
+        ),
+    )
 
     args = argparser.parse_args()
 
@@ -352,8 +381,9 @@ def main():
         args=args,
     )
 
-    _check_and_copy_training_cli_args(
-        artifact_output_path=artifact_output_path
+    _copy_training_cli_args(
+        artifact_output_path=artifact_output_path,
+        training_cli_args_filepath=args.cli_training_args_filepath,
     )
 
     # create a zip file with everything in it
@@ -367,10 +397,17 @@ def main():
     fp_artifact_target = UPath(
         ARTIFACT_PATH_FORMAT.format(artifact_name=args.artifact_name)
     )
-    with open(fp_artifact_local, "rb") as f:
-        # Upload the zip file to the target location
-        logger.info(f"Uploading artifact to {fp_artifact_target}")
-        fp_artifact_target.write_bytes(f.read())
+    if not args.skip_upload:
+        with open(fp_artifact_local, "rb") as f:
+            # Upload the zip file to the target location
+            logger.info(f"Uploading artifact to {fp_artifact_target}")
+            fp_artifact_target.write_bytes(f.read())
+    else:
+        logger.info(
+            "You opted to skip uploading the inference artifact to the S3 host."
+            f" You will have to upload it to {fp_artifact_target} manually."
+            f" The built inference artifact is stored in {fp_artifact_local}"
+        )
 
 
 if __name__ == "__main__":

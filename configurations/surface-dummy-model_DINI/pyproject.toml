@@ -1,5 +1,5 @@
 [project]
-name = "wlwm-surface-dummy-model_DINI"
+name = "surface-dummy-model_DINI"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
