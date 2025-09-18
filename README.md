@@ -37,7 +37,7 @@ run for each forecast cycle is as follows:
 This repository contains the deployment scripts and configuration files for deploying the MLWM models. All models are stored as container images and have an assumption of being deployed in a containerized environment. The containers are assuming the same structure of input data.
 
 ## Building inference images
-Inference are build during the GitHub Actions workflow. The workflow is triggered on every push to the `main` branch. The workflow builds the inference images and pushes them to the ghcr.io registry.
+Inference images are built during the GitHub Actions workflow. The workflow is triggered on every push to the `main` branch. The workflow builds the inference images and pushes them to the ghcr.io registry.
 
 It is also possible to build the inference images manually. This can be done by using the `build_image.sh` script, that is located in the configuration directory of the model you want to build. For example, to build the `surface-dummy-model_DINI` image, you can run the following command:
 
