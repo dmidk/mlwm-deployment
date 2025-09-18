@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- add GitHub Actions workflow for building and pushing inference images to ghcr.io, [\#11](https://github.com/dmidk/mlwm-deployment/pull/11), @khintz
 - add inferernce container entrypoint, to be run when an inference container is started, [\#13](https://github.com/dmidk/mlwm-deployment/pull/13), @leifdenby
 - add functions for constructing and parsing S3 forecast data paths (`mlwm.paths`) [\#2](https://github.com/dmidk/mlwm-deployment/pull/2), @leifdenby
 
