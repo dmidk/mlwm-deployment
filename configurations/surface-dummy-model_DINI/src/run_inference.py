@@ -1,14 +1,49 @@
 import copy
 import datetime
+from pathlib import Path
 from typing import Dict
 
+import isodate
 import mllam_data_prep as mdp
 import mllam_data_prep.config as mdp_config
+import torch
 import xarray as xr
 from loguru import logger
+from neural_lam.config import NeuralLAMConfig, load_config_and_datastore
+from neural_lam.weather_dataset import WeatherDataModule
+
+FP_TRAINING_CONFIG = "inference_artifact/configs/config.yaml"
+FP_TRAINING_DATASTORE_STATS = (
+    "inference_artifact/stats/danra.datastore.stats.zarr"
+)
+FP_TRAINING_DATASTORE_CONFIG = (
+    "inference_artifact/configs/danra.datastore.yaml"
+)
+
+# XXX: Parameters from training that aren't currently saved to the config, we
+# have to hardcode these for now
+NUM_PAST_FORCING_STEPS = 1
+NUM_FUTURE_FORCING_STEPS = 1
+# Inference system dependent parameters (larger batch size may require more
+# memory, and more workers may require more CPU cores)
+BATCH_SIZE = 4
+NUM_WORKERS = 2
+
+S3_BUCKET_URL = "https://object-store.os-api.cci1.ecmwf.int/danra"
+OVERWRITE_INPUT_PATHS = dict(
+    danra_surface=f"{S3_BUCKET_URL}/v0.6.0dev1/single_levels.zarr/",
+    danra_static=f"{S3_BUCKET_URL}/v0.5.0/single_levels.zarr/",
+)
+ANALYSIS_TIME = "2019-02-04T12:00"
+FORECAST_DURATION = datetime.timedelta(hours=6)
+
+# the path below describes where to save the inference datastore config,
+# inference zarr dataset and the inference config for neural-lam itself
+FP_INFERENCE_WORKDIR = "inference_workdir"
+FP_INFERENCE_DATASTORE_CONFIG = f"{FP_INFERENCE_WORKDIR}/danra.datastore.yaml"
+FP_INFERENCE_CONFIG = f"{FP_INFERENCE_WORKDIR}/config.yaml"
 
 
-@logger.catch(reraise=True)
 def _create_inference_datastore_config(
     training_config: mdp.Config,
     forecast_analysis_time: datetime.datetime,
@@ -57,7 +92,7 @@ def _create_inference_datastore_config(
         time=["analysis_time", "elapsed_forecast_duration"],
     )
     # there will be a single split called "test"
-    split_name = "test"
+    # split_name = "test"
     # which will have a single time slice, given by the analysis time argument
     # to the script
     sampling_coord_range = dict(
@@ -82,9 +117,28 @@ def _create_inference_datastore_config(
 
     # setup the split (test) for the dataset with a coordinate range along the
     # sampling dimension (analysis_time) of length 1
+    # inference_config.output.splitting = mdp_config.Splitting(
+    #     dim=sampling_dim,
+    #     splits={split_name: mdp_config.Split(**sampling_coord_range)},
+    # )
+
+    # XXX: currently (as of 0.4.0) neural-lam requires that `train`, `val` and
+    # `test` splits are always present, even if they are not used. So we
+    # create empty `train` and `val` splits here
     inference_config.output.splitting = mdp_config.Splitting(
-        dim=sampling_dim,
-        splits={split_name: mdp_config.Split(**sampling_coord_range)},
+        dim="time",
+        splits={
+            "train": mdp_config.Split(
+                start=forecast_analysis_time, end=forecast_analysis_time
+            ),
+            "val": mdp_config.Split(
+                start=forecast_analysis_time, end=forecast_analysis_time
+            ),
+            "test": mdp_config.Split(
+                start=forecast_analysis_time,
+                end=forecast_analysis_time + forecast_duration,
+            ),
+        },
     )
 
     # ensure the output data is sampled along the sampling dimension
@@ -133,46 +187,127 @@ def _create_inference_datastore_config(
     return inference_config
 
 
-def main():
-    fp_stats = "inference_artifact/stats/danra.datastore.stats.zarr"
-    fp_training_datastore = "inference_artifact/configs/danra.datastore.yaml"
+def _prepare_inference_dataset_zarr() -> str:
+    """
+    Prepare the inference dataset.
 
-    S3_BUCKET_URL = "https://object-store.os-api.cci1.ecmwf.int/danra"
-    overwrite_input_paths = dict(
-        danra_surface=f"{S3_BUCKET_URL}/v0.6.0dev1/single_levels.zarr/",
-        danra_static=f"{S3_BUCKET_URL}/v0.5.0/single_levels.zarr/",
-    )
-    analysis_time = "2019-02-04T12:00"
-    forecast_duration = datetime.timedelta(hours=6)
+    Returns
+    -------
+    str
+        The path to the inference datastore config file. The inference dataset
+        is saved as a zarr store in the same directory as the config file, with
+        the same name but with a .zarr extension instead of .yaml.
+    """
+    if Path(FP_INFERENCE_DATASTORE_CONFIG).exists():
+        logger.info(
+            f"Found existing inference datastore config at "
+            f"{FP_INFERENCE_DATASTORE_CONFIG}, skipping dataset creation"
+        )
+        return FP_INFERENCE_DATASTORE_CONFIG
 
-    inference_datastore_config_output_fp = "danra.inference.datastore.yaml"
-
-    ds_stats = xr.open_dataset(fp_stats)
+    ds_stats = xr.open_dataset(FP_TRAINING_DATASTORE_STATS)
     logger.debug(f"Opened stats dataset: {ds_stats}")
 
     logger.debug(
-        f"Loading training datastore config from {fp_training_datastore}"
+        f"Loading training datastore config from {FP_TRAINING_DATASTORE_CONFIG}"
     )
     datastore_training_config = mdp.Config.from_yaml_file(
-        fp_training_datastore
+        FP_TRAINING_DATASTORE_CONFIG
     )
 
     inference_config = _create_inference_datastore_config(
         training_config=datastore_training_config,
-        forecast_analysis_time=datetime.datetime.fromisoformat(analysis_time),
-        forecast_duration=forecast_duration,
-        overwrite_input_paths=overwrite_input_paths,
+        forecast_analysis_time=datetime.datetime.fromisoformat(ANALYSIS_TIME),
+        forecast_duration=FORECAST_DURATION,
+        overwrite_input_paths=OVERWRITE_INPUT_PATHS,
         sampling_dim="analysis_time",
     )
 
-    # save inference config to file
-    inference_config.to_yaml_file(inference_datastore_config_output_fp)
-    logger.info(
-        f"Saved inference datastore config to {inference_datastore_config_output_fp}"
+    ds = mdp.create_dataset(config=inference_config, ds_stats=ds_stats)
+
+    # neural-lam's convention is to have the same name for the zarr store
+    # as the config file, but with .zarr extension
+    fp_dataset = FP_INFERENCE_DATASTORE_CONFIG.replace(".yaml", ".zarr")
+
+    Path(FP_INFERENCE_DATASTORE_CONFIG).parent.mkdir(
+        parents=True, exist_ok=True
+    )
+    inference_config.to_yaml_file(FP_INFERENCE_DATASTORE_CONFIG)
+    ds.to_zarr(fp_dataset)
+    logger.info(f"Saved inference dataset to {fp_dataset}")
+
+    return FP_INFERENCE_DATASTORE_CONFIG
+
+
+def _create_inference_config(fp_inference_datastore_config: str) -> str:
+    training_config = NeuralLAMConfig.from_yaml_file(FP_TRAINING_CONFIG)
+    inference_config = copy.deepcopy(training_config)
+
+    # overwrite the path to the datastore config, to point to the
+    # inference datastore config
+    inference_config.datastore.config_path = Path(
+        fp_inference_datastore_config
+    ).relative_to(Path(FP_INFERENCE_CONFIG).parent)
+
+    # XXX: There is a bug in neural-lam here that means that the datastore kind
+    # doesn't correctly get serialised to a string in the config file when
+    # saved to yaml
+    inference_config.datastore.kind = "mdp"
+
+    inference_config.to_yaml_file(FP_INFERENCE_CONFIG)
+    logger.info(f"Saved inference config to {FP_INFERENCE_CONFIG}")
+
+    return FP_INFERENCE_CONFIG
+
+
+@logger.catch(reraise=True)
+def main():
+    fp_inference_datastore_config = _prepare_inference_dataset_zarr()
+    fp_inference_config = _create_inference_config(
+        fp_inference_datastore_config=fp_inference_datastore_config
     )
 
-    ds = mdp.create_dataset(config=inference_config, ds_stats=ds_stats)
-    print(ds)
+    # Load neural-lam configuration and datastore to use
+    config, datastore = load_config_and_datastore(
+        config_path=fp_inference_config
+    )
+
+    # XXX: hardcoded timestep from DANRA right now, this should be inferred
+    # from the dataset itself probably. neural-lam wants to know the number of
+    # steps for the autoregressive prediction, not the total duration.
+    ar_steps_eval = FORECAST_DURATION / isodate.parse_duration("PT3H")
+
+    # Create datamodule
+    data_module = WeatherDataModule(
+        datastore=datastore,
+        ar_steps_train=0,
+        ar_steps_eval=ar_steps_eval,
+        standardize=True,
+        num_past_forcing_steps=NUM_PAST_FORCING_STEPS,
+        num_future_forcing_steps=NUM_FUTURE_FORCING_STEPS,
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        eval_split="test",
+    )
+
+    # Instantiate model + trainer
+    if torch.cuda.is_available():
+        device_name = "cuda"
+        torch.set_float32_matmul_precision(
+            "high"
+        )  # Allows using Tensor Cores on A100s
+    else:
+        device_name = "cpu"
+
+    devices = "auto"
+
+    #
+    # ModelClass = nl.models.HiLAM
+    # model = ModelClass(args, config=config, datastore=datastore)
+
+    assert data_module.eval_dataloader() is not None
+    assert device_name is not None
+    assert devices is not None
 
 
 if __name__ == "__main__":

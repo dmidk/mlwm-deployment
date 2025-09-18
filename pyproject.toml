@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "parse>=1.20.2",
-    "dask>=2025.4.1",
     "dotenv>=0.9.9",
     "ipdb>=0.13.13",
     "mllam-data-prep>=0.6.0",
