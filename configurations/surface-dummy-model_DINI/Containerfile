@@ -29,7 +29,7 @@ RUN rm inference_artifact.zip
 RUN ls -la /workspace/inference_artifact
 
 # Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh 
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ENV PATH="/root/.local/bin:$PATH"
 

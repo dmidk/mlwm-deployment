@@ -30,32 +30,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # - name: Fetch inference artifact from AWS S3
-      #   uses: keithweaver/aws-s3-github-action@v1.0.0
-      #   with:
-      #     command: 'cp'
-      #     source: 's3://mlwm-artifacts/inference-artifacts/${{ matrix.config }}.zip'
-      #     destination: 'configurations/${{ matrix.config }}/inference_artifact.zip'
-      #     # Ensure that AWS_SECRET_ACCESS_KEY is set in the repository or organization secrets:
-      #     # GitHub UI: Settings > Secrets and variables > Actions > New repository secret
-      #     aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws_region: 'us-west-2'
-
-      # - name: Log in to the Container registry
-      #   uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
-      #   with:
-      #     registry: ${{ env.REGISTRY }}
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           # this might remove tools that are actually needed,
           # when set to "true" but frees about 6 GB
           tool-cache: true
-          
+
           android: true
           dotnet: true
           haskell: true
@@ -84,31 +65,3 @@ jobs:
 
       - name: Push image to ghcr.io
         run: podman push $GHCR_IMAGE
-
-      # sudo rm -rf /usr/share/dotnet
-      # sudo rm -rf /opt/ghc
-      # sudo rm -rf "/usr/local/share/boost"
-      # sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
-      # - name: Extract metadata (tags, labels) for Docker
-      #   id: meta
-      #   uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-      #   with:
-      #     images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      # - name: Build and push Docker image
-      #   id: push
-      #   uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
-      #   with:
-      #     context: configurations/${{ matrix.config }}
-      #     file: configurations/${{ matrix.config }}/Containerfile
-      #     push: true
-      #     tags: ${{ steps.meta.outputs.tags }}
-      #     labels: ${{ steps.meta.outputs.labels }}
-
-      # - name: Generate artifact attestation
-      #   uses: actions/attest-build-provenance@v2
-      #   with:
-      #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
-      #     subject-digest: ${{ steps.push.outputs.digest }}
-      #     push-to-registry: true
