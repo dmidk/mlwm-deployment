@@ -1,0 +1,4 @@
+*.zip
+*.zarr/
+inference_artifact/
+*.yaml
