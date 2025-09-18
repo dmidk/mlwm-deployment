@@ -2,6 +2,7 @@
 
 # Configuration
 MLWM_LOG_LEVEL=DEBUG
+MLWM_IMAGE_NAME="surface-dummy-model_dini:latest"
 
 HTTP_PROXY=""
 HTTPS_PROXY=""
@@ -41,4 +42,5 @@ podman build \
 	--build-arg AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
 	--build-arg AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
     --build-arg AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+	-t "$MLWM_IMAGE_NAME" \
 	-f Containerfile
