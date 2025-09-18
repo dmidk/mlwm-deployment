@@ -15,7 +15,7 @@ dependencies = [
     "zarr>=3.0",
     "mllam-data-prep",
     "ipython>=8.37.0",
-    "neural-lam==0.4.0",
+    "neural-lam",
 ]
 
 [dependency-groups]
@@ -29,6 +29,7 @@ profile = "black"
 
 [tool.uv.sources]
 mllam-data-prep = { git = "https://github.com/leifdenby/mllam-data-prep", rev = "feat/inference-cli-args" }
+neural-lam = { git = "https://github.com/leifdenby/neural-lam", rev = "feat/mdp-datastore-support-forecast-data" }
 [build-system]
 requires = ["setuptools>=61", "setuptools_scm"]
 build-backend = "setuptools.build_meta"

@@ -6,9 +6,11 @@ from typing import Dict
 import isodate
 import mllam_data_prep as mdp
 import mllam_data_prep.config as mdp_config
+import pytorch_lightning as pl
 import torch
 import xarray as xr
 from loguru import logger
+from neural_lam import models as nl_models
 from neural_lam.config import NeuralLAMConfig, load_config_and_datastore
 from neural_lam.weather_dataset import WeatherDataModule
 
@@ -24,6 +26,7 @@ FP_TRAINING_DATASTORE_CONFIG = (
 # have to hardcode these for now
 NUM_PAST_FORCING_STEPS = 1
 NUM_FUTURE_FORCING_STEPS = 1
+MODEL_CLASS = nl_models.GraphLAM
 # Inference system dependent parameters (larger batch size may require more
 # memory, and more workers may require more CPU cores)
 BATCH_SIZE = 4
@@ -287,7 +290,6 @@ def main():
         num_future_forcing_steps=NUM_FUTURE_FORCING_STEPS,
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
-        eval_split="test",
     )
 
     # Instantiate model + trainer
@@ -301,13 +303,44 @@ def main():
 
     devices = "auto"
 
-    #
-    # ModelClass = nl.models.HiLAM
-    # model = ModelClass(args, config=config, datastore=datastore)
+    class ModelArgs:
+        output_std = None
+        # XXX: we shouldn't have to set a loss function when we're only doing
+        # inference, but neural-lam currently requires it
+        loss = "mse"
+        restore_opt = False
+        n_example_pred = 1
+        lr = None
+
+        graph = "inference-graph"
+        hidden_dim = 4
+        hidden_layers = 1
+        processor_layers = 2
+        mesh_aggr = "sum"
+        val_steps_to_log = [1, 3]
+        metrics_watch = []
+        num_past_forcing_steps = NUM_PAST_FORCING_STEPS
+        num_future_forcing_steps = NUM_FUTURE_FORCING_STEPS
+
+    model_args = ModelArgs()
+    model = MODEL_CLASS(model_args, config=config, datastore=datastore)
 
     assert data_module.eval_dataloader() is not None
     assert device_name is not None
     assert devices is not None
+
+    trainer = pl.Trainer(
+        max_epochs=1,
+        deterministic=True,
+        accelerator=device_name,
+        devices=devices,
+        log_every_n_steps=1,
+        # use `detect_anomaly` to ensure that we don't have NaNs popping up
+        # during inference
+        detect_anomaly=True,
+    )
+
+    trainer.test(model=model, datamodule=data_module)
 
 
 if __name__ == "__main__":
