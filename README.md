@@ -53,6 +53,15 @@ More examples can be found in [`mlwm/tests/test_paths.py`](src/mlwm/tests/test_p
 ## Building inference images
 Inference are build during the GitHub Actions workflow. The workflow is triggered on every push to the `main` branch. The workflow builds the inference images and pushes them to the ghcr.io registry.
 
+It is also possible to build the inference images manually. This can be done by using the `build_image.sh` script, that is located in the configuration directory of the model you want to build. For example, to build the `surface-dummy-model_DINI` image, you can run the following command:
+
+```bash
+cd configurations/surface-dummy-model_DINI
+AWS_ACCESS_KEY_ID=<your_aws_access_key_id> AWS_SECRET_ACCESS_KEY=<your_aws_secret_access_key> MLWM_PULL_PROXY=<proxy_for_container_registry> ./build_image.sh
+```
+If you don't have a proxy for the container registry, you can leave the `MLWM_PULL_PROXY` variable empty.
+
+
 ## Building inference artifact on machine that was trained on
 
 The purpose of building an **inference artifact** is to collect all the information that is needed to run model inference later.
