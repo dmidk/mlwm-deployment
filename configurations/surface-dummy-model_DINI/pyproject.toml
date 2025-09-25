@@ -13,8 +13,8 @@ dependencies = [
     "tqdm>=4.67.1",
     "universal-pathlib>=0.2.6",
     "zarr>=3.0",
-    "mllam-data-prep",
     "ipython>=8.37.0",
+    "mllam-data-prep",
     "neural-lam",
 ]
 
@@ -26,10 +26,6 @@ dev = [
 
 [tool.isort]
 profile = "black"
-
-[tool.uv.sources]
-mllam-data-prep = { git = "https://github.com/leifdenby/mllam-data-prep", rev = "feat/inference-cli-args" }
-neural-lam = { git = "https://github.com/leifdenby/neural-lam", rev = "feat/mdp-datastore-support-forecast-data" }
 [build-system]
 requires = ["setuptools>=61", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
@@ -40,3 +36,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.uv.sources]
+mllam-data-prep = { git = "https://github.com/leifdenby/mllam-data-prep", rev = "feat/inference-cli-args" }
+neural-lam = { git = "https://github.com/leifdenby/neural-lam", rev = "dev/first-inference-image" }
