@@ -7,7 +7,6 @@ import mllam_data_prep as mdp
 import mllam_data_prep.config as mdp_config
 import xarray as xr
 from loguru import logger
-from neural_lam import models as nl_models
 from neural_lam.config import NeuralLAMConfig
 
 FP_TRAINING_CONFIG = "inference_artifact/configs/config.yaml"
@@ -17,16 +16,6 @@ FP_TRAINING_DATASTORE_STATS = (
 FP_TRAINING_DATASTORE_CONFIG = (
     "inference_artifact/configs/danra.datastore.yaml"
 )
-
-# XXX: Parameters from training that aren't currently saved to the config, we
-# have to hardcode these for now
-NUM_PAST_FORCING_STEPS = 1
-NUM_FUTURE_FORCING_STEPS = 1
-MODEL_CLASS = nl_models.GraphLAM
-# Inference system dependent parameters (larger batch size may require more
-# memory, and more workers may require more CPU cores)
-BATCH_SIZE = 4
-NUM_WORKERS = 2
 
 S3_BUCKET_URL = "https://object-store.os-api.cci1.ecmwf.int/danra"
 OVERWRITE_INPUT_PATHS = dict(
