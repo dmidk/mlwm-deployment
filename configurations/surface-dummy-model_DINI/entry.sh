@@ -3,16 +3,56 @@
 #
 # This script is intended to be run in a container, and assumes that during the
 # container image build that the inference artifact was unpacked to
-# inference_artifact/
+# inference_artifact/. You can also run this script interactively if you have
+# extracted the inference artifact yourself.
+#
+# The selection of datasets to use for input to the model, analysis time and
+# forecast duration is controller by the following environment variables:
+# DATASTORE_INPUT_PATHS, ANALYSIS_TIME, FORECAST_DURATION and NUM_EVAL_STEPS
+# (the latter should be inferred from FORECAST_DURATION, but that is TODO)
+#
+# - DATASTORE_INPUT_PATHS is a comma-separated list of mappings of
+#   {datastore_name}:{input_name}={input_path}
+# - ANALYSIS_TIME is the analysis time to start the forecast from is ISO8601
+#   format
+# - FORECAST_DURATION is the duration of the forecast in ISO8601 duration
+#   format and effects the length of the produced inference dataset
+# - NUM_EVAL_STEPS is the number of autoregressive steps to run during
+#   inference. This should be consistent with FORECAST_DURATION and the model
+#   configuration (e.g. if the model was trained on 3-hourly data and
+#   FORECAST_DURATION is PT18H then NUM_EVAL_STEPS should be 6
 
 # make this script fail on any error
 set -e
 
+## Runtime configuration (variable expected to change on every execution)
+# enable use of .env so that during development we can set environment (e.g.
+# paths to replace in datastore config)
+if [ -f .env ] ; then
+    echo "Sourcing local .env file"
+    set -a && source .env && set +a
+fi
+
+# set default override of input paths in the datastore config used for creating the
+# inference dataset if environment variable isn't set
+DATASTORE_INPUT_PATHS=${DATASTORE_INPUT_PATHS:-"\
+danra:danra_surface=https://object-store.os-api.cci1.ecmwf.int/danra/v0.6.0dev1/single_levels.zarr/,\
+danra:danra_static=https://object-store.os-api.cci1.ecmwf.int/danra/v0.5.0/single_levels.zarr/"}
+TIME_DIMENSIONS=${TIME_DIMENSIONS:-"analysis_time,elapsed_forecast_duration"}
+ANALYSIS_TIME=${ANALYSIS_TIME:-"2019-02-04T12:00"}  # assumed to be in UTC
 # forecast out to 18 hours, which means 6 steps of 3 hours each (the model was
 # trained on 3-hourly analysis data)
-NUM_EVAL_STEPS=6
+FORECAST_DURATION=${FORECAST_DURATION:-"PT18H"}
+NUM_EVAL_STEPS=${NUM_EVAL_STEPS:-6}
 
-# model specific parameters, ideally these would come from some config
+echo "Creating forecast using following runtime args:"
+echo "  DATASTORE_INPUT_PATHS=${DATASTORE_INPUT_PATHS}"
+echo "  TIME_DIMENSIONS=${TIME_DIMENSIONS}"
+echo "  ANALYSIS_TIME=${ANALYSIS_TIME}"
+echo "  FORECAST_DURATION=${FORECAST_DURATION}"
+echo "  NUM_EVAL_STEPS=${NUM_EVAL_STEPS}"
+
+## Model specific inference configuration (same across all executions)
 NUM_HIDDEN_DIMS=2
 GRAPH_NAME="multiscale"
 HIEARCHICAL_GRAPH=false
@@ -23,13 +63,12 @@ else
     CREATE_GRAPH_ARG=""
 fi
 
+## Setup working directories
 INFERENCE_ARTIFACT_PATH="./inference_artifact"
 INFERENCE_WORK_PATH="./inference_workdir"
-
 # XXX: these mount points could come from config.yaml for the model run configuration
 INPUT_DATASETS_ROOT_PATH="${INFERENCE_WORK_PATH}/inputs"
 OUTPUT_DATASETS_ROOT_PATH="${INFERENCE_WORK_PATH}/outputs"
-
 mkdir -p ${OUTPUT_DATASETS_ROOT_PATH}
 
 # disable weights and biases logging, without this --eval with neural-lam fails
@@ -44,6 +83,9 @@ uv run wandb disabled
 # b) include the statistics from the training dataset and
 # c) set the dimensions in the configuration to have `analysis_time` and
 #    `elapsed_forecast_duration` instead of just `time`.
+DATASTORE_INPUT_PATHS=${DATASTORE_INPUT_PATHS} \
+ANALYSIS_TIME=${ANALYSIS_TIME} \
+FORECAST_DURATION=${FORECAST_DURATION} \
 uv run python src/create_inference_dataset.py
 
 ## 2. Create graph

@@ -1,43 +1,94 @@
 import copy
 import datetime
+import os
 from pathlib import Path
 from typing import Dict
 
+import isodate
 import mllam_data_prep as mdp
 import mllam_data_prep.config as mdp_config
 import xarray as xr
 from loguru import logger
-from neural_lam.config import NeuralLAMConfig
+from neural_lam.config import DatastoreSelection, NeuralLAMConfig
 
 FP_TRAINING_CONFIG = "inference_artifact/configs/config.yaml"
-FP_TRAINING_DATASTORE_STATS = (
-    "inference_artifact/stats/danra.datastore.stats.zarr"
-)
-FP_TRAINING_DATASTORE_CONFIG = (
-    "inference_artifact/configs/danra.datastore.yaml"
-)
-
-S3_BUCKET_URL = "https://object-store.os-api.cci1.ecmwf.int/danra"
-OVERWRITE_INPUT_PATHS = dict(
-    danra_surface=f"{S3_BUCKET_URL}/v0.6.0dev1/single_levels.zarr/",
-    danra_static=f"{S3_BUCKET_URL}/v0.5.0/single_levels.zarr/",
-)
-ANALYSIS_TIME = "2019-02-04T12:00"
-FORECAST_DURATION = datetime.timedelta(hours=6)
-
 # the path below describes where to save the inference datastore config,
 # inference zarr dataset and the inference config for neural-lam itself
 FP_INFERENCE_WORKDIR = "inference_workdir"
-FP_INFERENCE_DATASTORE_CONFIG = f"{FP_INFERENCE_WORKDIR}/danra.datastore.yaml"
 FP_INFERENCE_CONFIG = f"{FP_INFERENCE_WORKDIR}/config.yaml"
+
+
+def _parse_datastore_input_paths(s: str) -> Dict[str, Dict[str, str]]:
+    """
+    Parse a comma-separated list of {datastore_name}:{input_name}={input_path}
+    into a dictionary of dictionaries.
+
+    Parameters
+    ----------
+    s : str
+        The string to parse.
+
+    Returns
+    -------
+    Dict[str, Dict[str, str]]
+        A dictionary of dictionaries.
+    """
+    result = {}
+    for item in s.split(","):
+        try:
+            datastore_input, input_path = item.split("=")
+            datastore_name, input_name = datastore_input.split(":")
+        except ValueError:
+            raise ValueError(
+                f"Invalid format for DATASTORE_INPUT_PATHS item: {item}. "
+                f"Expected format is {{datastore_name}}:{{input_name}}={{input_path}}"
+            )
+        if datastore_name not in result:
+            result[datastore_name] = {}
+        result[datastore_name][input_name] = input_path
+    return result
+
+
+REQUIRED_ENV_VARS = {
+    # comma-separated list of {datastore_name}:{input_name}={input_path}
+    "DATASTORE_INPUT_PATHS": _parse_datastore_input_paths,
+    # iso8601 datetime string, e.g. 2019-02-04T12:00+0000
+    "ANALYSIS_TIME": isodate.parse_datetime,
+    # iso8160 duration string, e.g. PT6H for 6 hours
+    "FORECAST_DURATION": isodate.parse_duration,
+    # comma-separated list of time dimensions to replace, e.g.
+    # time,forecast_reference_time
+    "TIME_DIMENSIONS": lambda s: s.split(","),
+}
+
+
+def _parse_env_vars() -> Dict[str, any]:
+    """
+    Parse and validate required environment variables.
+
+    Returns
+    -------
+    Dict[str, any]
+        A dictionary of parsed environment variables.
+    """
+    env_vars = {}
+    for var, parser in REQUIRED_ENV_VARS.items():
+        value = os.getenv(var)
+        if value is None:
+            raise EnvironmentError(f"Environment variable {var} is not set.")
+        try:
+            env_vars[var] = parser(value)
+        except Exception as e:
+            raise ValueError(f"Error parsing environment variable {var}: {e}")
+    return env_vars
 
 
 def _create_inference_datastore_config(
     training_config: mdp.Config,
     forecast_analysis_time: datetime.datetime,
     forecast_duration: datetime.timedelta,
+    time_dimensions: list[str],
     overwrite_input_paths: Dict[str, str] = {},
-    sampling_dim: str = "time",
 ) -> mdp.Config:
     """
     From a training datastore config, create an inference datastore config that:
@@ -46,7 +97,7 @@ def _create_inference_datastore_config(
     - has a single split called "test" with a single time slice given by the
       `forecast_analysis_time` argument
     - optionally overwrites input paths with the `overwrite_input_paths` argument
-    - ensures that the output variables have the correct dimensions, i.e.
+    - ensures that the output variables have the correct dimensions, for example
       replacing `time` with [`analysis_time`, `elapsed_forecast_duration`]
     - ensures that the input datasets have the correct dimensions and dim_mappings,
       i.e. replacing `time` with [`analysis_time`, `elapsed_forecast_duration`
@@ -59,11 +110,14 @@ def _create_inference_datastore_config(
         The analysis time to use for the inference config
     forecast_duration : datetime.timedelta
         The forecast duration to use for the inference config
+    time_dimensions : list[str], optional
+        The list of time dimensions to replace `time` with, for example
+        replacing `time` with [`analysis_time`, `elapsed_forecast_duration`],
+        the first dimension is assumed to be the sampling dimension (e.g. the
+        analysis time)
     overwrite_input_paths : Dict[str, str], optional
         A dictionary of input names and paths to overwrite in the training config,
         by default {}
-    sampling_dim : str, optional
-        The new sampling dimension to use, by default "time"
 
     Returns
     -------
@@ -72,12 +126,17 @@ def _create_inference_datastore_config(
     """
     # the new sampling dimension is `analysis_time`
     old_sampling_dim = "time"
-    sampling_dim = "analysis_time"
+    if not isinstance(time_dimensions, list) or len(time_dimensions) == 0:
+        raise ValueError(
+            "time_dimensions must be a non-empty list of strings, got "
+            f"{time_dimensions}"
+        )
+    sampling_dim = time_dimensions[0]
     # instead of only having `time` as dimension, the input forecast datasets
     # have two dimensions that describe the time value [analysis_time,
     # elapsed_forecast_duration]
     dim_replacements = dict(
-        time=["analysis_time", "elapsed_forecast_duration"],
+        time=time_dimensions,
     )
     # there will be a single split called "test"
     # split_name = "test"
@@ -175,9 +234,31 @@ def _create_inference_datastore_config(
     return inference_config
 
 
-def _prepare_inference_dataset_zarr() -> str:
+def _prepare_inference_dataset_zarr(
+    datastore_name: str,
+    datastore_input_paths: Dict[str, str],
+    analysis_time: datetime.datetime,
+    forecast_duration: datetime.timedelta,
+    time_dimensions: list[str],
+) -> str:
     """
-    Prepare the inference dataset.
+    Prepare the inference dataset for a single datastore.
+
+    Parameters
+    ----------
+    datastore_name : str
+        The name of the datastore to prepare the inference dataset for, this
+        sets the expected path of the training datastore config and stats.
+    datastore_input_paths : Dict[str, str]
+        A dictionary of input names and paths to overwrite in the training
+        config.
+    analysis_time : datetime.datetime
+        The analysis time to use for the inference dataset.
+    forecast_duration : datetime.timedelta
+        The forecast duration to use for the inference dataset.
+    time_dimensions : list[str]
+        The list of time dimensions to replace `time` with, for example
+        replacing `time` with [`analysis_time`, `elapsed_forecast_duration`]
 
     Returns
     -------
@@ -186,61 +267,138 @@ def _prepare_inference_dataset_zarr() -> str:
         is saved as a zarr store in the same directory as the config file, with
         the same name but with a .zarr extension instead of .yaml.
     """
-    if Path(FP_INFERENCE_DATASTORE_CONFIG).exists():
-        logger.info(
-            f"Found existing inference datastore config at "
-            f"{FP_INFERENCE_DATASTORE_CONFIG}, skipping dataset creation"
-        )
-        return FP_INFERENCE_DATASTORE_CONFIG
-
-    ds_stats = xr.open_dataset(FP_TRAINING_DATASTORE_STATS)
+    fp_training_datastore_stats = (
+        f"inference_artifact/stats/{datastore_name}.datastore.stats.zarr"
+    )
+    ds_stats = xr.open_dataset(fp_training_datastore_stats)
     logger.debug(f"Opened stats dataset: {ds_stats}")
 
+    fp_training_datastore_config = (
+        f"inference_artifact/configs/{datastore_name}.datastore.yaml"
+    )
+
     logger.debug(
-        f"Loading training datastore config from {FP_TRAINING_DATASTORE_CONFIG}"
+        f"Loading training datastore config from {fp_training_datastore_config}"
     )
     datastore_training_config = mdp.Config.from_yaml_file(
-        FP_TRAINING_DATASTORE_CONFIG
+        fp_training_datastore_config
     )
 
     inference_config = _create_inference_datastore_config(
         training_config=datastore_training_config,
-        forecast_analysis_time=datetime.datetime.fromisoformat(ANALYSIS_TIME),
-        forecast_duration=FORECAST_DURATION,
-        overwrite_input_paths=OVERWRITE_INPUT_PATHS,
-        sampling_dim="analysis_time",
+        forecast_analysis_time=analysis_time,
+        forecast_duration=forecast_duration,
+        overwrite_input_paths=datastore_input_paths,
+        time_dimensions=time_dimensions,
     )
 
-    ds = mdp.create_dataset(config=inference_config, ds_stats=ds_stats)
+    fp_inference_datastore_config = (
+        f"{FP_INFERENCE_WORKDIR}/{datastore_name}.datastore.yaml"
+    )
+
+    Path(fp_inference_datastore_config).parent.mkdir(
+        parents=True, exist_ok=True
+    )
+    logger.info(
+        f"Saving inference datastore config to {fp_inference_datastore_config}"
+    )
 
     # neural-lam's convention is to have the same name for the zarr store
     # as the config file, but with .zarr extension
-    fp_dataset = FP_INFERENCE_DATASTORE_CONFIG.replace(".yaml", ".zarr")
+    fp_dataset = fp_inference_datastore_config.replace(".yaml", ".zarr")
+    inference_config.to_yaml_file(fp_inference_datastore_config)
 
-    Path(FP_INFERENCE_DATASTORE_CONFIG).parent.mkdir(
-        parents=True, exist_ok=True
-    )
-    inference_config.to_yaml_file(FP_INFERENCE_DATASTORE_CONFIG)
+    ds = mdp.create_dataset(config=inference_config, ds_stats=ds_stats)
     ds.to_zarr(fp_dataset)
     logger.info(f"Saved inference dataset to {fp_dataset}")
 
-    return FP_INFERENCE_DATASTORE_CONFIG
+    return fp_inference_datastore_config
 
 
-def _create_inference_config(fp_inference_datastore_config: str) -> str:
+def _prepare_all_inference_dataset_zarr(
+    analysis_time: datetime.datetime,
+    forecast_duration: datetime.timedelta,
+    datastore_input_paths: Dict[str, Dict[str, str]],
+    time_dimensions: list[str],
+) -> str:
+    """
+    Prepare the inference dataset.
+
+    Parameters
+    ----------
+    analysis_time : datetime.datetime
+        The analysis time to use for the inference dataset(s).
+    forecast_duration : datetime.timedelta
+        The forecast duration to use for the inference dataset(s).
+    datastore_input_paths : Dict[str, Dict[str,str]]
+        A dictionary of datastore names and their corresponding input names
+        and paths to overwrite in the training config.
+    time_dimensions : list[str]
+        The list of time dimensions to replace `time` with, for example
+        replacing `time` with [`analysis_time`, `elapsed_forecast_duration`]
+
+    Returns
+    -------
+    Dict[str, str]
+        A dictionary of datastore names and the path to their corresponding
+        inference datastore config file. The inference dataset is saved as a
+        zarr store in the same directory as the config file, with the same
+        name but with a .zarr extension instead of .yaml.
+    """
+    fps_datastore_configs = {}
+    for datastore_name, input_paths in datastore_input_paths.items():
+        logger.info(f"Processing {datastore_name} datastore for inference")
+        fp_training_datastore_config = _prepare_inference_dataset_zarr(
+            datastore_name=datastore_name,
+            datastore_input_paths=input_paths,
+            analysis_time=analysis_time,
+            forecast_duration=forecast_duration,
+            time_dimensions=time_dimensions,
+        )
+
+        fps_datastore_configs[datastore_name] = fp_training_datastore_config
+
+    return fps_datastore_configs
+
+
+def _create_inference_config(
+    fps_inference_datastore_config: Dict[str, str]
+) -> str:
     training_config = NeuralLAMConfig.from_yaml_file(FP_TRAINING_CONFIG)
     inference_config = copy.deepcopy(training_config)
 
-    # overwrite the path to the datastore config, to point to the
-    # inference datastore config
-    inference_config.datastore.config_path = Path(
-        fp_inference_datastore_config
-    ).relative_to(Path(FP_INFERENCE_CONFIG).parent)
+    def _set_datastore_config_path(node: DatastoreSelection, fp: str):
+        node.config_path = Path(fp).relative_to(
+            Path(FP_INFERENCE_CONFIG).parent
+        )
+        # XXX: There is a bug in neural-lam here that means that the datastore kind
+        # doesn't correctly get serialised to a string in the config file when
+        # saved to yaml
+        node.kind = str(node.kind)
 
-    # XXX: There is a bug in neural-lam here that means that the datastore kind
-    # doesn't correctly get serialised to a string in the config file when
-    # saved to yaml
-    inference_config.datastore.kind = "mdp"
+    # see if the neural-lam config was for single or multiple datastores
+    if hasattr(training_config, "datastores"):
+        # using multiple datastores
+        for (
+            datastore_name,
+            fp_datastore_config,
+        ) in fps_inference_datastore_config.items():
+            if datastore_name not in inference_config.datastores:
+                raise ValueError(
+                    f"Datastore {datastore_name} not found in training config. "
+                    f"Available datastores are: "
+                    f"{list(inference_config.datastores.keys())}"
+                )
+            _set_datastore_config_path(
+                node=inference_config.datastores[datastore_name],
+                fp=fp_datastore_config,
+            )
+    else:
+        fp_datastore_config = list(fps_inference_datastore_config.values())[0]
+        # using a single datastore
+        _set_datastore_config_path(
+            node=inference_config.datastore, fp=fp_datastore_config
+        )
 
     inference_config.to_yaml_file(FP_INFERENCE_CONFIG)
     logger.info(f"Saved inference config to {FP_INFERENCE_CONFIG}")
@@ -250,11 +408,31 @@ def _create_inference_config(fp_inference_datastore_config: str) -> str:
 
 @logger.catch(reraise=True)
 def main():
-    fp_inference_datastore_config = _prepare_inference_dataset_zarr()
+    env_vars = _parse_env_vars()
+    # convert analysis time to UTC and strip timezone info
+    analysis_time = (
+        env_vars["ANALYSIS_TIME"]
+        .astimezone(datetime.timezone.utc)
+        .replace(tzinfo=None)
+    )
+
+    fps_inference_datastore_config = _prepare_all_inference_dataset_zarr(
+        analysis_time=analysis_time,
+        forecast_duration=env_vars["FORECAST_DURATION"],
+        datastore_input_paths=env_vars["DATASTORE_INPUT_PATHS"],
+        time_dimensions=env_vars["TIME_DIMENSIONS"],
+    )
     _create_inference_config(
-        fp_inference_datastore_config=fp_inference_datastore_config
+        fps_inference_datastore_config=fps_inference_datastore_config
     )
 
 
 if __name__ == "__main__":
-    main()
+    with_debugger = os.getenv("MLWM_DEBUGGER", "0")
+    if with_debugger == "ipdb":
+        import ipdb
+
+        with ipdb.launch_ipdb_on_exception():
+            main()
+    else:
+        main()

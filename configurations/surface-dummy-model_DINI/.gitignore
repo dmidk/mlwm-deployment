@@ -3,3 +3,4 @@
 inference_artifact/
 *.yaml
 inference_workdir/
+.env
