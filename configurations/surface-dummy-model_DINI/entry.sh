@@ -44,8 +44,8 @@ uv run python src/create_inference_dataset.py
 
 ## 2. Create graph
 # TODO: could cache this, although that isn't implemented at the moment
-# uv run python -m neural_lam.create_graph --config_path ${INFERENCE_WORK_PATH}/config.yaml \
-#     --name ${GRAPH_NAME} ${CREATE_GRAPH_ARG}
+uv run python -m neural_lam.create_graph --config_path ${INFERENCE_WORK_PATH}/config.yaml \
+    --name ${GRAPH_NAME} ${CREATE_GRAPH_ARG}
 
 ## 3. Run inference
 uv run python -m neural_lam.train_model --config_path ${INFERENCE_WORK_PATH}/config.yaml \

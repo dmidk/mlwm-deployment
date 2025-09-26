@@ -4,6 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    {name = "Leif Denby", email = "lcd@dmi.dk"},
+    {name = "Kasper Hintz", email = "kah@dmi.dk"},
+]
 dependencies = [
     "parse>=1.20.2",
     "dask>=2025.4.1",

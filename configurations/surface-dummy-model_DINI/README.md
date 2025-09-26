@@ -1,4 +1,4 @@
-# surface-dummy-model_DANRA
+# surface-dummy-model_DINI
 
 The model configuration in this directory is a dummy model that was trained on
 surface variables from DANRA, only 10 days of data and only trained 10
