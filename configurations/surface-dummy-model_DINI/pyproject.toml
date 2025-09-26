@@ -34,13 +34,6 @@ profile = "black"
 requires = ["setuptools>=61", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
 [tool.uv.sources]
 mllam-data-prep = { git = "https://github.com/leifdenby/mllam-data-prep", rev = "feat/inference-cli-args" }
 neural-lam = { git = "https://github.com/leifdenby/neural-lam", rev = "dev/first-inference-image" }
