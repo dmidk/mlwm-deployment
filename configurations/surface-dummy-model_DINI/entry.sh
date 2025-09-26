@@ -32,6 +32,10 @@ OUTPUT_DATASETS_ROOT_PATH="${INFERENCE_WORK_PATH}/outputs"
 
 mkdir -p ${OUTPUT_DATASETS_ROOT_PATH}
 
+# disable weights and biases logging, without this --eval with neural-lam fails
+# because it tries to set up the logging and there is no WANDB_API_KEY set
+uv run wandb disabled
+
 ## 1. Create inference dataset
 # This uses a cli stored within mlwm to called mllam-data-prep to create the
 # inference dataset. The inference dataset is created by modifying the
