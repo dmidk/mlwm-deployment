@@ -46,6 +46,6 @@ aws-list-profiles() {
 # .env
 ANALYSIS_TIME="2025-09-22T120000Z"
 DINI_ZARR="s3://harmonie-zarr/dini/control/${ANALYSIS_TIME}/single_levels.zarr/"
-DATASTORE_INPUT_PATHS="danra:danra_surface=${DINI_ZARR},danra:danra_static=${DINI_ZARR}"
+DATASTORE_INPUT_PATHS="danra.danra_surface=${DINI_ZARR},danra.danra_static=${DINI_ZARR}"
 TIME_DIMENSIONS="time"
 ```

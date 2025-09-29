@@ -20,7 +20,7 @@ FP_INFERENCE_CONFIG = f"{FP_INFERENCE_WORKDIR}/config.yaml"
 
 def _parse_datastore_input_paths(s: str) -> Dict[str, Dict[str, str]]:
     """
-    Parse a comma-separated list of {datastore_name}:{input_name}={input_path}
+    Parse a comma-separated list of {datastore_name}.{input_name}={input_path}
     into a dictionary of dictionaries.
 
     Parameters
@@ -37,7 +37,7 @@ def _parse_datastore_input_paths(s: str) -> Dict[str, Dict[str, str]]:
     for item in s.split(","):
         try:
             datastore_input, input_path = item.split("=")
-            datastore_name, input_name = datastore_input.split(":")
+            datastore_name, input_name = datastore_input.split(".")
         except ValueError:
             raise ValueError(
                 f"Invalid format for DATASTORE_INPUT_PATHS item: {item}. "

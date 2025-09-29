@@ -12,7 +12,7 @@
 # (the latter should be inferred from FORECAST_DURATION, but that is TODO)
 #
 # - DATASTORE_INPUT_PATHS is a comma-separated list of mappings of
-#   {datastore_name}:{input_name}={input_path}
+#   {datastore_name}.{input_name}={input_path}
 # - ANALYSIS_TIME is the analysis time to start the forecast from is ISO8601
 #   format
 # - FORECAST_DURATION is the duration of the forecast in ISO8601 duration
@@ -36,8 +36,8 @@ fi
 # set default override of input paths in the datastore config used for creating the
 # inference dataset if environment variable isn't set
 DATASTORE_INPUT_PATHS=${DATASTORE_INPUT_PATHS:-"\
-danra:danra_surface=https://object-store.os-api.cci1.ecmwf.int/danra/v0.6.0dev1/single_levels.zarr/,\
-danra:danra_static=https://object-store.os-api.cci1.ecmwf.int/danra/v0.5.0/single_levels.zarr/"}
+danra.danra_surface=https://object-store.os-api.cci1.ecmwf.int/danra/v0.6.0dev1/single_levels.zarr/,\
+danra.danra_static=https://object-store.os-api.cci1.ecmwf.int/danra/v0.5.0/single_levels.zarr/"}
 TIME_DIMENSIONS=${TIME_DIMENSIONS:-"analysis_time,elapsed_forecast_duration"}
 ANALYSIS_TIME=${ANALYSIS_TIME:-"2019-02-04T12:00"}  # assumed to be in UTC
 # forecast out to 18 hours, which means 6 steps of 3 hours each (the model was
