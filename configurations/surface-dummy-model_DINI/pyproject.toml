@@ -30,10 +30,10 @@ dev = [
 
 [tool.isort]
 profile = "black"
-[build-system]
-requires = ["setuptools>=61", "setuptools_scm"]
-build-backend = "setuptools.build_meta"
 
 [tool.uv.sources]
 mllam-data-prep = { git = "https://github.com/leifdenby/mllam-data-prep", rev = "feat/inference-cli-args" }
 neural-lam = { git = "https://github.com/leifdenby/neural-lam", rev = "dev/first-inference-image" }
+[build-system]
+requires = ["setuptools>=61", "setuptools_scm"]
+build-backend = "setuptools.build_meta"

@@ -7,6 +7,7 @@ from typing import Dict
 import isodate
 import mllam_data_prep as mdp
 import mllam_data_prep.config as mdp_config
+import parse
 import xarray as xr
 from loguru import logger
 from neural_lam.config import DatastoreSelection, NeuralLAMConfig
@@ -16,6 +17,7 @@ FP_TRAINING_CONFIG = "inference_artifact/configs/config.yaml"
 # inference zarr dataset and the inference config for neural-lam itself
 FP_INFERENCE_WORKDIR = "inference_workdir"
 FP_INFERENCE_CONFIG = f"{FP_INFERENCE_WORKDIR}/config.yaml"
+DATASTORE_INPUT_PATH_FORMAT = "{datastore_name}.{input_name}={input_path}"
 
 
 def _parse_datastore_input_paths(s: str) -> Dict[str, Dict[str, str]]:
@@ -35,16 +37,23 @@ def _parse_datastore_input_paths(s: str) -> Dict[str, Dict[str, str]]:
     """
     result = {}
     for item in s.split(","):
-        try:
-            datastore_input, input_path = item.split("=")
-            datastore_name, input_name = datastore_input.split(".")
-        except ValueError:
+        parts = parse.parse(DATASTORE_INPUT_PATH_FORMAT, item)
+        if parts is None:
             raise ValueError(
                 f"Invalid format for DATASTORE_INPUT_PATHS item: {item}. "
-                f"Expected format is {{datastore_name}}:{{input_name}}={{input_path}}"
+                f"Expected format is {DATASTORE_INPUT_PATH_FORMAT}"
             )
+        datastore_name = parts["datastore_name"]
+        input_name = parts["input_name"]
+        input_path = parts["input_path"]
+
         if datastore_name not in result:
             result[datastore_name] = {}
+        elif input_name in result[datastore_name]:
+            raise ValueError(
+                f"Duplicate input name {input_name} for datastore "
+                f"{datastore_name} in DATASTORE_INPUT_PATHS"
+            )
         result[datastore_name][input_name] = input_path
     return result
 
