@@ -96,9 +96,10 @@ uv run python -m neural_lam.create_graph --config_path ${INFERENCE_WORKDIR}/conf
     --name ${GRAPH_NAME} ${CREATE_GRAPH_ARG}
 
 ## 3. Run inference
+# NB: parallel write of zarr over multiple GPUs not implemented yet, so can ony use one gpu for now
 uv run python -m neural_lam.train_model --config_path ${INFERENCE_WORKDIR}/config.yaml \
     --eval test\
-    --devices 1\  # parallel write of zarr over multiple GPUs not implemented yet
+    --devices 1\
     --graph ${GRAPH_NAME} \
     --hidden_dim ${NUM_HIDDEN_DIMS} \
     --ar_steps_eval ${NUM_EVAL_STEPS} \
