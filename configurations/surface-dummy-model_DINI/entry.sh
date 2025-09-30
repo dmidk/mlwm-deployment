@@ -44,6 +44,7 @@ ANALYSIS_TIME=${ANALYSIS_TIME:-"2019-02-04T12:00"}  # assumed to be in UTC
 # trained on 3-hourly analysis data)
 FORECAST_DURATION=${FORECAST_DURATION:-"PT18H"}
 NUM_EVAL_STEPS=${NUM_EVAL_STEPS:-6}
+INFERENCE_WORKDIR=${INFERENCE_WORKDIR:-"./inference_workdir"}
 
 echo "Creating forecast using following runtime args:"
 echo "  DATASTORE_INPUT_PATHS=${DATASTORE_INPUT_PATHS}"
@@ -51,6 +52,7 @@ echo "  TIME_DIMENSIONS=${TIME_DIMENSIONS}"
 echo "  ANALYSIS_TIME=${ANALYSIS_TIME}"
 echo "  FORECAST_DURATION=${FORECAST_DURATION}"
 echo "  NUM_EVAL_STEPS=${NUM_EVAL_STEPS}"
+echo "  INFERENCE_WORKDIR=${INFERENCE_WORKDIR}"
 
 ## Model specific inference configuration (same across all executions)
 NUM_HIDDEN_DIMS=2
@@ -65,10 +67,8 @@ fi
 
 ## Setup working directories
 INFERENCE_ARTIFACT_PATH="./inference_artifact"
-INFERENCE_WORK_PATH="./inference_workdir"
-# XXX: these mount points could come from config.yaml for the model run configuration
-INPUT_DATASETS_ROOT_PATH="${INFERENCE_WORK_PATH}/inputs"
-OUTPUT_DATASETS_ROOT_PATH="${INFERENCE_WORK_PATH}/outputs"
+INPUT_DATASETS_ROOT_PATH="${INFERENCE_WORKDIR}/inputs"
+OUTPUT_DATASETS_ROOT_PATH="${INFERENCE_WORKDIR}/outputs"
 mkdir -p ${OUTPUT_DATASETS_ROOT_PATH}
 
 # disable weights and biases logging, without this --eval with neural-lam fails
@@ -86,15 +86,17 @@ uv run wandb disabled
 DATASTORE_INPUT_PATHS=${DATASTORE_INPUT_PATHS} \
 ANALYSIS_TIME=${ANALYSIS_TIME} \
 FORECAST_DURATION=${FORECAST_DURATION} \
+TIME_DIMENSIONS=${TIME_DIMENSIONS} \
+INFERENCE_WORKDIR=${INFERENCE_WORKDIR} \
 uv run python src/create_inference_dataset.py
 
 ## 2. Create graph
 # TODO: could cache this, although that isn't implemented at the moment
-uv run python -m neural_lam.create_graph --config_path ${INFERENCE_WORK_PATH}/config.yaml \
+uv run python -m neural_lam.create_graph --config_path ${INFERENCE_WORKDIR}/config.yaml \
     --name ${GRAPH_NAME} ${CREATE_GRAPH_ARG}
 
 ## 3. Run inference
-uv run python -m neural_lam.train_model --config_path ${INFERENCE_WORK_PATH}/config.yaml \
+uv run python -m neural_lam.train_model --config_path ${INFERENCE_WORKDIR}/config.yaml \
     --eval test\
     --graph ${GRAPH_NAME} \
     --hidden_dim ${NUM_HIDDEN_DIMS} \
@@ -110,7 +112,7 @@ uv run python -m neural_lam.train_model --config_path ${INFERENCE_WORK_PATH}/con
 # that manually here but maybe mllam-data-prep should be able to merge inputs
 # originating from the same zarr dataset path?
 uv run python -m mllam_data_prep.recreate_inputs \
-    --config-path ${INFERENCE_WORK_PATH}/danra.datastore.yaml \
+    --config-path ${INFERENCE_WORKDIR}/danra.datastore.yaml \
     --output-path-format "${OUTPUT_DATASETS_ROOT_PATH}/{input_name}.zarr" \
     ${OUTPUT_DATASETS_ROOT_PATH}/inference_output.zarr
 

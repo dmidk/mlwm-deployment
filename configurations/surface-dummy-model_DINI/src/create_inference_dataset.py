@@ -13,10 +13,6 @@ from loguru import logger
 from neural_lam.config import DatastoreSelection, NeuralLAMConfig
 
 FP_TRAINING_CONFIG = "inference_artifact/configs/config.yaml"
-# the path below describes where to save the inference datastore config,
-# inference zarr dataset and the inference config for neural-lam itself
-FP_INFERENCE_WORKDIR = "inference_workdir"
-FP_INFERENCE_CONFIG = f"{FP_INFERENCE_WORKDIR}/config.yaml"
 DATASTORE_INPUT_PATH_FORMAT = "{datastore_name}.{input_name}={input_path}"
 
 
@@ -68,6 +64,9 @@ REQUIRED_ENV_VARS = {
     # comma-separated list of time dimensions to replace, e.g.
     # time,forecast_reference_time
     "TIME_DIMENSIONS": lambda s: s.split(","),
+    # inference working directory, relative to where inference config and
+    # datasets are saved
+    "INFERENCE_WORKDIR": str,
 }
 
 
@@ -246,6 +245,7 @@ def _create_inference_datastore_config(
 def _prepare_inference_dataset_zarr(
     datastore_name: str,
     datastore_input_paths: Dict[str, str],
+    fp_inference_workdir: str,
     analysis_time: datetime.datetime,
     forecast_duration: datetime.timedelta,
     time_dimensions: list[str],
@@ -261,6 +261,9 @@ def _prepare_inference_dataset_zarr(
     datastore_input_paths : Dict[str, str]
         A dictionary of input names and paths to overwrite in the training
         config.
+    fp_inference_workdir : str
+        The path to the inference working directory, where the inference
+        datastore config(s) and zarr dataset(s) will be saved.
     analysis_time : datetime.datetime
         The analysis time to use for the inference dataset.
     forecast_duration : datetime.timedelta
@@ -302,7 +305,7 @@ def _prepare_inference_dataset_zarr(
     )
 
     fp_inference_datastore_config = (
-        f"{FP_INFERENCE_WORKDIR}/{datastore_name}.datastore.yaml"
+        f"{fp_inference_workdir}/{datastore_name}.datastore.yaml"
     )
 
     Path(fp_inference_datastore_config).parent.mkdir(
@@ -318,8 +321,8 @@ def _prepare_inference_dataset_zarr(
     inference_config.to_yaml_file(fp_inference_datastore_config)
 
     ds = mdp.create_dataset(config=inference_config, ds_stats=ds_stats)
+    logger.info(f"Writing inference dataset to {fp_dataset}")
     ds.to_zarr(fp_dataset)
-    logger.info(f"Saved inference dataset to {fp_dataset}")
 
     return fp_inference_datastore_config
 
@@ -328,6 +331,7 @@ def _prepare_all_inference_dataset_zarr(
     analysis_time: datetime.datetime,
     forecast_duration: datetime.timedelta,
     datastore_input_paths: Dict[str, Dict[str, str]],
+    fp_inference_workdir: str,
     time_dimensions: list[str],
 ) -> str:
     """
@@ -342,6 +346,9 @@ def _prepare_all_inference_dataset_zarr(
     datastore_input_paths : Dict[str, Dict[str,str]]
         A dictionary of datastore names and their corresponding input names
         and paths to overwrite in the training config.
+    fp_inference_workdir : str
+        The path to the inference working directory, where the inference
+        datastore config(s) and zarr dataset(s) will be saved.
     time_dimensions : list[str]
         The list of time dimensions to replace `time` with, for example
         replacing `time` with [`analysis_time`, `elapsed_forecast_duration`]
@@ -360,6 +367,7 @@ def _prepare_all_inference_dataset_zarr(
         fp_training_datastore_config = _prepare_inference_dataset_zarr(
             datastore_name=datastore_name,
             datastore_input_paths=input_paths,
+            fp_inference_workdir=fp_inference_workdir,
             analysis_time=analysis_time,
             forecast_duration=forecast_duration,
             time_dimensions=time_dimensions,
@@ -371,14 +379,16 @@ def _prepare_all_inference_dataset_zarr(
 
 
 def _create_inference_config(
-    fps_inference_datastore_config: Dict[str, str]
+    fps_inference_datastore_config: Dict[str, str], fp_inference_workdir: str
 ) -> str:
     training_config = NeuralLAMConfig.from_yaml_file(FP_TRAINING_CONFIG)
     inference_config = copy.deepcopy(training_config)
 
+    fp_inference_config = f"{fp_inference_workdir}/config.yaml"
+
     def _set_datastore_config_path(node: DatastoreSelection, fp: str):
         node.config_path = Path(fp).relative_to(
-            Path(FP_INFERENCE_CONFIG).parent
+            Path(fp_inference_config).parent
         )
         # XXX: There is a bug in neural-lam here that means that the datastore kind
         # doesn't correctly get serialised to a string in the config file when
@@ -409,10 +419,10 @@ def _create_inference_config(
             node=inference_config.datastore, fp=fp_datastore_config
         )
 
-    inference_config.to_yaml_file(FP_INFERENCE_CONFIG)
-    logger.info(f"Saved inference config to {FP_INFERENCE_CONFIG}")
+    inference_config.to_yaml_file(fp_inference_config)
+    logger.info(f"Saved inference config to {fp_inference_config}")
 
-    return FP_INFERENCE_CONFIG
+    return fp_inference_config
 
 
 @logger.catch(reraise=True)
@@ -429,10 +439,12 @@ def main():
         analysis_time=analysis_time,
         forecast_duration=env_vars["FORECAST_DURATION"],
         datastore_input_paths=env_vars["DATASTORE_INPUT_PATHS"],
+        fp_inference_workdir=env_vars["INFERENCE_WORKDIR"],
         time_dimensions=env_vars["TIME_DIMENSIONS"],
     )
     _create_inference_config(
-        fps_inference_datastore_config=fps_inference_datastore_config
+        fps_inference_datastore_config=fps_inference_datastore_config,
+        fp_inference_workdir=env_vars["INFERENCE_WORKDIR"],
     )
 
 
