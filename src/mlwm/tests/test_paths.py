@@ -1,8 +1,7 @@
 import datetime
 
-import pytest
-
 import mlwm.paths as mlwm_paths
+import pytest
 
 
 @pytest.mark.parametrize(

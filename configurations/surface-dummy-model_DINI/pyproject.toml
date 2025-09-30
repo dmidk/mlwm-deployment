@@ -1,7 +1,39 @@
 [project]
 name = "surface-dummy-model_DINI"
 version = "0.1.0"
-requires-python = ">=3.10"
-dependencies = [
-  "neural-lam @ git+https://github.com/joeloskarsson/neural-lam-dev.git@aab339f"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Leif Denby", email = "lcd@dmi.dk"},
+    {name = "Kasper Hintz", email = "kah@dmi.dk"},
 ]
+dependencies = [
+    "parse>=1.20.2",
+    "dask>=2025.4.1",
+    "dotenv>=0.9.9",
+    "ipdb>=0.13.13",
+    "s3fs>=2025.3.2",
+    "tqdm>=4.67.1",
+    "universal-pathlib>=0.2.6",
+    "zarr>=3.0",
+    "ipython>=8.37.0",
+    "mllam-data-prep",
+    "neural-lam",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
+]
+
+[tool.isort]
+profile = "black"
+
+[tool.uv.sources]
+mllam-data-prep = { git = "https://github.com/leifdenby/mllam-data-prep", rev = "feat/inference-cli-args" }
+neural-lam = { git = "https://github.com/leifdenby/neural-lam", rev = "dev/first-inference-image" }
+[build-system]
+requires = ["setuptools>=61", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
