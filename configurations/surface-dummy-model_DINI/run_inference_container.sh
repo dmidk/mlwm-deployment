@@ -58,19 +58,34 @@ DATASTORE_INPUT_PATHS="danra.danra_surface=${DINI_ZARR},danra.danra_static=${DIN
 TIME_DIMENSIONS="time"
 INFERENCE_WORKDIR="$(pwd)/inference_workdir/"
 
-podman run --rm \
-  --device /dev/nvidia0 \
-  --device /dev/nvidiactl \
-  --device /dev/nvidia-uvm \
-  --device /dev/nvidia-uvm-tools \
-  --device /dev/nvidia-modeset \
-  -v /lib/x86_64-linux-gnu/libcuda.so.1:/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  -v /lib/x86_64-linux-gnu/libnvidia-ml.so.1:/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
-  -v /lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.1:/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.1:ro \
-  --shm-size=32g \
-  -v ${INFERENCE_WORKDIR}:/workspace/inference_workdir:Z \
-  -e DATASTORE_INPUT_PATHS="${DATASTORE_INPUT_PATHS}" \
-  -e TIME_DIMENSIONS="${TIME_DIMENSIONS}" \
-  -e ANALYSIS_TIME="${ANALYSIS_TIME}" \
-  -e FORECAST_DURATION="${FORECAST_DURATION}" \
-  localhost/surface-dummy-model_dini:latest
+# Check if hostname starts with "spark" to determine GPU device mounting strategy
+if [[ $HOSTNAME == spark* ]]; then
+  # On spark devices: use --gpus all flag
+  podman run --rm \
+    --gpus all \
+    --shm-size=32g \
+    -v ${INFERENCE_WORKDIR}:/workspace/inference_workdir:Z \
+    -e DATASTORE_INPUT_PATHS="${DATASTORE_INPUT_PATHS}" \
+    -e TIME_DIMENSIONS="${TIME_DIMENSIONS}" \
+    -e ANALYSIS_TIME="${ANALYSIS_TIME}" \
+    -e FORECAST_DURATION="${FORECAST_DURATION}" \
+    localhost/surface-dummy-model_dini:latest
+else
+  # On non-spark devices: use manual device mounting
+  podman run --rm \
+    --device /dev/nvidia0 \
+    --device /dev/nvidiactl \
+    --device /dev/nvidia-uvm \
+    --device /dev/nvidia-uvm-tools \
+    --device /dev/nvidia-modeset \
+    -v /lib/x86_64-linux-gnu/libcuda.so.1:/lib/x86_64-linux-gnu/libcuda.so.1:ro \
+    -v /lib/x86_64-linux-gnu/libnvidia-ml.so.1:/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
+    -v /lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.1:/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.1:ro \
+    --shm-size=32g \
+    -v ${INFERENCE_WORKDIR}:/workspace/inference_workdir:Z \
+    -e DATASTORE_INPUT_PATHS="${DATASTORE_INPUT_PATHS}" \
+    -e TIME_DIMENSIONS="${TIME_DIMENSIONS}" \
+    -e ANALYSIS_TIME="${ANALYSIS_TIME}" \
+    -e FORECAST_DURATION="${FORECAST_DURATION}" \
+    localhost/surface-dummy-model_dini:latest
+fi
