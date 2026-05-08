@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  app:
+    platform: ${DEV_CONTAINER_PLATFORM:-linux/amd64}
+    build:
+      context: .
+      dockerfile: Containerfile
+    command: sleep infinity
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - ./tmp:/tmp
+    environment:
+      FOO: "fii"

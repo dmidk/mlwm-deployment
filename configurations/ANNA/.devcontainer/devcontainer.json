@@ -1,0 +1,19 @@
+{
+  "name": "mlwm-dev",
+  "dockerComposeFile": [
+    "../docker-compose.dev.yml"
+  ],
+  "service": "app",
+  "workspaceFolder": "/app",
+  "overrideCommand": true,
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  },
+  "postCreateCommand": "uv sync"
+}
